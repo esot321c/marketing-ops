@@ -1,43 +1,28 @@
 # Marketing-Ops
 
-Marketing-Ops is a local, open-source AI marketing command center for founder-led and small-team marketing systems.
+Direct an AI agent to run your marketing.
 
-It helps agents and humans run the marketing side of a business:
+Marketing-Ops is an open-source system for the awareness (tofu) stage of your funnel, whether that means generating ads or keeping a steady social presence. Working with an AI usually scatters your marketing across separate chats that each start from nothing, so the voice drifts and the context resets.
 
-- Market and competitor research
-- Brand positioning
-- Website, blog, SEO, and AEO strategy
-- Campaign planning
-- Content calendars
-- LinkedIn and Instagram carousel briefs
-- Reels, TikTok, Shorts, and long-form video scripts
-- Publishing preparation
-- Analytics review and next-action planning
+Here the agent works from one structured filesystem on your machine, so chats stay context aware and the output stays on brand. Curated skills guide the agent through the work within that structure, and the dashboard presents it all visually so you can track everything in one place.
 
-It runs fully on your machine. Your marketing data lives in local files you own; nothing is sent anywhere unless you wire it up yourself.
+## What it does
 
-## Product Boundary
+You start by setting the foundations. The init flow helps you define your ideal customer profile (ICP), set the voice your agent writes in, and get your branding right. Those become the bases everything else builds on.
 
-Marketing-Ops is a marketing system, not a CRM and not a sales pipeline manager.
+From there you generate media against those foundations. Your agent can guide Claude Design to produce carousels for Instagram and LinkedIn, write scripts for videos you generate on another AI platform, and prep posts for publishing. Marketing-Ops then sets a cadence and a release schedule so the posting stays steady.
 
-Marketing-Ops owns:
+It also runs market and competitor research to inform those foundations, so the ICP and positioning reflect your actual market.
 
-- Brands
-- Campaigns
-- Content ideas
-- Website/blog strategy
-- Creative assets
-- Publishing prep
-- Marketing analytics
+The same agent handles the wider loop. It can plan a campaign from an objective, shape website, blog, and SEO strategy, and review analytics after each push to set the next actions.
 
-It intentionally stays out of:
+Because the files sit on your machine, an agent like Claude Code or Codex works from them directly, and you can edit them by hand. The dashboard updates as those files change.
 
-- Leads and contacts
-- Sales accounts and deal stages
-- Outreach and follow-up cadences
-- CRM workflow
+## What it's not
 
-When Marketing-Ops creates demand or identifies a sales-ready handoff, the correct next step is to pass that context to your CRM. Marketing-Ops does not manage the sales relationship itself.
+Marketing-Ops works the awareness stage. In AIDA terms it builds Attention through brand and top-of-funnel content. It does not manage leads, deal stages, or sales follow-up.
+
+Once your content creates demand and a contact is ready for lead management, that belongs in a CRM. [PI6](https://pi6.app) is built for that next step.
 
 ## How It Works
 
