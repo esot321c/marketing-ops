@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { test, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import type { ReactElement } from "react";
 import { WorkspaceSidebar } from "./WorkspaceSidebar.js";
 import { setupSteps } from "@/lib/setupNav";
 import { STAGES } from "@/lib/initStages";
@@ -13,20 +15,33 @@ function state(fn: (id: string) => StageStatus): InitState {
   return { tenantId: "t", stages };
 }
 
+const hrefFor = (s: string) => `/${s}?tenant=t`;
+
+function renderSidebar(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 test("ready mode shows Content group with Today", () => {
   const steps = setupSteps(state(() => "approved"));
-  render(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" onSelect={() => {}} composerEnabled={false} />);
+  renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" hrefFor={hrefFor} composerEnabled={false} />);
   expect(screen.getByText("Today")).toBeTruthy();
   expect(screen.getByText("Brand & design")).toBeTruthy();
 });
 
-test("guided mode shows the setup steps and a locked Content group", () => {
+test("enabled nav items are links that carry the tenant query", () => {
+  const steps = setupSteps(state(() => "approved"));
+  renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" hrefFor={hrefFor} composerEnabled={false} />);
+  const today = screen.getByRole("link", { name: /Today/i });
+  expect(today.getAttribute("href")).toBe("/today?tenant=t");
+});
+
+test("guided mode: the current step is a link, a later step is a disabled button", () => {
   const steps = setupSteps(state(() => "not-started"));
-  render(<WorkspaceSidebar mode="guided" tenantName="Example Agency" steps={steps} section="import-intake" onSelect={() => {}} composerEnabled={false} />);
+  renderSidebar(<WorkspaceSidebar mode="guided" tenantName="Example Agency" steps={steps} section="import-intake" hrefFor={hrefFor} composerEnabled={false} />);
   expect(screen.getByText("Brand & design")).toBeTruthy();
-  // current step is selectable, a later step is locked (disabled) — verifies the lock logic per step
-  const intake = screen.getByRole("button", { name: /Import & intake/i }) as HTMLButtonElement;
-  expect(intake.disabled).toBe(false);
+  // current step (import-intake) is enabled -> a real link
+  expect(screen.getByRole("link", { name: /Import & intake/i })).toBeTruthy();
+  // a later, locked step is a disabled button (non-navigable)
   const vertical = screen.getByRole("button", { name: /Vertical/i }) as HTMLButtonElement;
   expect(vertical.disabled).toBe(true);
 });

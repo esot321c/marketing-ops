@@ -1,5 +1,5 @@
 export type StageId =
-  | "import-intake" | "design-system" | "voice" | "icp" | "vertical" | "competitor-research" | "profile-build";
+  | "import-intake" | "icp" | "vertical" | "competitor-research" | "design-system" | "voice" | "profile-build";
 export type StageStatus = "not-started" | "in-progress" | "in-review" | "approved";
 export type StageType = "input" | "review";
 export interface StageDef { id: StageId; label: string; type: StageType; needsAgent: boolean; }

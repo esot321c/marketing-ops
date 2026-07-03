@@ -22,6 +22,10 @@ app.get("/events", (c) =>
 
 if (process.env.NODE_ENV === "production") {
   app.use("/*", serveStatic({ root: "./dist" }));
+  // SPA fallback: client-side routes (e.g. /board?tenant=..) have no file on
+  // disk. API and /events are registered above and match first; anything else
+  // that reaches here gets the app shell so react-router can resolve the path.
+  app.get("*", serveStatic({ path: "./dist/index.html" }));
 }
 
 startWatcher();

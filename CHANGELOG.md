@@ -5,6 +5,23 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-03
+
+Setup runs strategy-first, saved stages can be refined in chat, and the workspace lives at real URLs.
+
+### Added
+
+- **Approve-or-refine on saved setup stages**: once a stage is saved (in-review), the workspace offers a second path beside Approve — a copy-paste prompt to evaluate and refine the saved artifact in chat before committing to it. It applies to every setup stage through one shared control, and the refine trigger is documented in the setup skill.
+- **Real URLs for the workspace**: the app now uses client-side routing, so your position survives a page refresh and every view is linkable. The page is the path (`/board`, `/icp`, `/composer/:item`) and the active tenant is a query parameter (`?tenant=`), so switching brand keeps you on the same page. Sidebar entries are real links (middle-click and open-in-new-tab work), and a production SPA fallback serves deep links.
+
+### Changed
+
+- **Setup is now strategy-first.** The Init sequence runs ICP, vertical, and competitor research before the design system and voice, so brand expression follows a settled strategy instead of preceding it. Profile build stays last. (Previously voice ran third, ahead of ICP.) Stages already approved under the old order are preserved.
+
+### Fixed
+
+- Markdown lists in the setup artifact view render their bullets and numbers again; a base CSS reset had been stripping the list markers.
+
 ## [0.2.0] - 2026-07-02
 
 The content motion goes live, and the dashboard becomes one per-tenant workspace.

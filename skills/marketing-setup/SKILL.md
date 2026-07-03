@@ -85,6 +85,14 @@ Run Init step "<stage-id>" (<Stage Label>) for <Tenant Name>
 
 Paste that string into the chat to trigger the relevant agent work for that stage and tenant. The dashboard displays this string verbatim — the chat trigger must match it exactly.
 
+Once a stage is saved (`in-review`), the wizard offers a second trigger alongside the Approve button, so the user can evaluate and refine the saved artifact in chat instead of approving blind:
+
+```
+Evaluate and refine Init step "<stage-id>" (<Stage Label>) for <Tenant Name>
+```
+
+When you receive this, read the saved artifact for that stage, assess it against the prior approved stages, and discuss or revise it with the user rather than treating it as final. The stage stays `in-review` until the user approves.
+
 Status values: `not-started | in-progress | in-review | approved`
 
 State is persisted at `data/setup/<tenant>/init.json`.
@@ -105,13 +113,61 @@ State is persisted at `data/setup/<tenant>/init.json`.
 
 ---
 
-### Stage 2: `design-system` — Design style & Design System
+### Stage 2: `icp` — ICP
+
+**Type:** Input / agent-assisted
+
+**Handoff prompt:** `Run Init step "icp" (ICP) for <Tenant Name>`
+
+**Input artifact:** Approved intake (stage 1), user-supplied audience notes.
+
+**Agent writes:** `data/setup/<tenant>/icp.md` — Ideal Customer Profile covering job titles, industries, pain points, goals, objections, and where the audience spends time online.
+
+**Review gate:** User reviews the ICP document and approves in the wizard.
+
+**Loop-back:** If the ICP needs refinement, user provides corrections and the agent updates `icp.md` before re-approval.
+
+---
+
+### Stage 3: `vertical` — Vertical
+
+**Type:** Input / agent-assisted
+
+**Handoff prompt:** `Run Init step "vertical" (Vertical) for <Tenant Name>`
+
+**Input artifact:** Approved ICP (stage 2), intake notes.
+
+**Agent writes:** `data/setup/<tenant>/vertical.md` — vertical/niche definition: the specific market category, positioning statement, key proof points, and differentiation from adjacent verticals.
+
+**Review gate:** User reviews the vertical definition and approves in the wizard.
+
+**Loop-back:** If the vertical is wrong or too broad/narrow, user provides context and the agent revises before re-approval.
+
+---
+
+### Stage 4: `competitor-research` — Competitor research
+
+**Type:** Review (agent produces; user approves)
+
+**Handoff prompt:** `Run Init step "competitor-research" (Competitor research) for <Tenant Name>`
+
+**Input artifact:** Approved ICP (stage 2), approved vertical (stage 3), list of competitor names/URLs from intake.
+
+**Agent writes:** `data/research/<tenant>/competitors/` — per-competitor profiles covering positioning, content themes, posting cadence, engagement patterns, and strategic gaps. Login-gated competitor content (e.g. premium LinkedIn pages, paywalled posts) is captured using the auth-gated browser capture pattern from the `market-research` skill — the agent navigates through authenticated sessions rather than skipping gated content.
+
+**Review gate:** User reviews the competitor profiles, then approves in the wizard.
+
+**Loop-back:** If key competitors are missing or profiles are shallow, user adds URLs and the agent re-researches before re-approval.
+
+---
+
+### Stage 5: `design-system` — Design style & Design System
 
 **Type:** Review (agent produces; user approves)
 
 **Handoff prompt:** `Run Init step "design-system" (Design style & Design System) for <Tenant Name>`
 
-**Input artifact:** Approved intake (stage 1), existing brand assets in `data/setup/<tenant>/assets/`.
+**Input artifact:** Approved intake (stage 1), approved ICP (stage 2), approved vertical (stage 3), approved competitor research (stage 4), existing brand assets in `data/setup/<tenant>/assets/`.
 
 **Agent writes:** The tenant's design system as **user-owned data** at `data/setup/<tenant>/design-system/` — brand tokens (`tokens.json`) and `@dsCard` HTML previews under `previews/`. The reusable, token-driven components live in the app (`apps/dashboard/src/design-system/`, system layer) and render any tenant's tokens; only the tenant's tokens and previews are written here. The agent uses the **frontend-design** skill to design the palette/type and author the previews with distinctive, production-grade styling. After authoring, the agent runs `/design-sync` to sync the `@dsCard` preview files (from `data/setup/<tenant>/design-system/previews/`) to a claude.ai/design Design System project for visual review.
 
@@ -129,69 +185,21 @@ State is persisted at `data/setup/<tenant>/init.json`.
 
 ---
 
-### Stage 3: `voice` — Voice / copy
+### Stage 6: `voice` — Voice / copy
 
 **Type:** Input / agent-assisted
 
 **Handoff prompt:** `Run Init step "voice" (Voice / copy) for <Tenant Name>`
 
-**Input artifact:** Approved intake (stage 1), approved design system (stage 2), user-supplied voice notes and reference examples.
+**Input artifact:** Approved intake (stage 1), approved ICP (stage 2), approved vertical (stage 3), approved competitor research (stage 4), approved design system (stage 5), user-supplied voice notes and reference examples.
 
 **Agent writes:** `data/setup/<tenant>/voice.md` — brand voice guide covering tone, vocabulary, sentence rhythm, what to avoid, and 3–5 example posts demonstrating the voice in practice.
 
-The voice guide **inherits the shared `writing-rules.md`** (in this skill folder) — those rules are universal across brands and do not get rewritten per tenant. `voice.md` adds only what is brand-specific: the **person** (a personal brand uses "I", an agency/company uses "we", a product/SaaS uses "you/your"), the tone and vocabulary, the content pillars, and the example posts. Every example post must pass the shared rules' self-check.
+The voice guide **inherits the shared `writing-rules.md`** (in this skill folder) — those rules are universal across brands and do not get rewritten per tenant. `voice.md` adds only what is brand-specific: the **person** (a personal brand uses "I", an agency/company uses "we", a product/SaaS uses "you/your"), the tone and vocabulary, the content pillars, and the example posts. Because voice now follows the strategy stages, the tone, vocabulary, and content pillars are derived from the approved ICP, vertical, and competitor research: the pillars must speak to the ICP's buyer rather than a broader audience. Every example post must pass the shared rules' self-check.
 
 **Review gate:** User reads the voice guide and example posts, then approves in the wizard.
 
 **Loop-back:** If the voice guide misses the mark, user provides feedback and the agent revises `voice.md` before re-approval.
-
----
-
-### Stage 4: `icp` — ICP
-
-**Type:** Input / agent-assisted
-
-**Handoff prompt:** `Run Init step "icp" (ICP) for <Tenant Name>`
-
-**Input artifact:** Approved intake (stage 1), voice guide (stage 3), user-supplied audience notes.
-
-**Agent writes:** `data/setup/<tenant>/icp.md` — Ideal Customer Profile covering job titles, industries, pain points, goals, objections, and where the audience spends time online.
-
-**Review gate:** User reviews the ICP document and approves in the wizard.
-
-**Loop-back:** If the ICP needs refinement, user provides corrections and the agent updates `icp.md` before re-approval.
-
----
-
-### Stage 5: `vertical` — Vertical
-
-**Type:** Input / agent-assisted
-
-**Handoff prompt:** `Run Init step "vertical" (Vertical) for <Tenant Name>`
-
-**Input artifact:** Approved ICP (stage 4), intake notes.
-
-**Agent writes:** `data/setup/<tenant>/vertical.md` — vertical/niche definition: the specific market category, positioning statement, key proof points, and differentiation from adjacent verticals.
-
-**Review gate:** User reviews the vertical definition and approves in the wizard.
-
-**Loop-back:** If the vertical is wrong or too broad/narrow, user provides context and the agent revises before re-approval.
-
----
-
-### Stage 6: `competitor-research` — Competitor research
-
-**Type:** Review (agent produces; user approves)
-
-**Handoff prompt:** `Run Init step "competitor-research" (Competitor research) for <Tenant Name>`
-
-**Input artifact:** Approved ICP (stage 4), approved vertical (stage 5), list of competitor names/URLs from intake.
-
-**Agent writes:** `data/research/<tenant>/competitors/` — per-competitor profiles covering positioning, content themes, posting cadence, engagement patterns, and strategic gaps. Login-gated competitor content (e.g. premium LinkedIn pages, paywalled posts) is captured using the auth-gated browser capture pattern from the `market-research` skill — the agent navigates through authenticated sessions rather than skipping gated content.
-
-**Review gate:** User reviews the competitor profiles, then approves in the wizard.
-
-**Loop-back:** If key competitors are missing or profiles are shallow, user adds URLs and the agent re-researches before re-approval.
 
 ---
 
@@ -201,7 +209,7 @@ The voice guide **inherits the shared `writing-rules.md`** (in this skill folder
 
 **Handoff prompt:** `Run Init step "profile-build" (Profile build) for <Tenant Name>`
 
-**Input artifact:** All approved prior stages (intake, design system, voice, ICP, vertical, competitor research).
+**Input artifact:** All approved prior stages (intake, ICP, vertical, competitor research, design system, voice).
 
 **Agent writes:** `data/setup/<tenant>/profile-linkedin.md` (and equivalents for other channels) — a complete, copy-paste-ready profile spec covering banner design brief, headline, tagline, about section, featured section copy, and an apply checklist. State is tracked in `data/setup/<tenant>/profile-linkedin.json` via the `/api/profiles/<tenant>/<channel>/state` route.
 

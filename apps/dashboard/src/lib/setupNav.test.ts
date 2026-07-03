@@ -18,7 +18,7 @@ test("all-not-started: first step is current, rest locked", () => {
 });
 
 test("approved prefix are done, first non-approved is current, rest locked", () => {
-  const steps = setupSteps(state({ "import-intake": "approved", "design-system": "approved" }));
+  const steps = setupSteps(state({ "import-intake": "approved", icp: "approved" }));
   expect(steps[0]!.status).toBe("done");
   expect(steps[1]!.status).toBe("done");
   expect(steps[2]!.status).toBe("current");
@@ -34,9 +34,9 @@ test("all approved: every step done, no current", () => {
 });
 
 test("in-progress / in-review are treated as not-approved (current, then locked)", () => {
-  const steps = setupSteps(state({ "import-intake": "approved", "design-system": "in-review" }));
+  const steps = setupSteps(state({ "import-intake": "approved", icp: "in-review" }));
   expect(steps[0]!.status).toBe("done");     // import-intake approved
-  expect(steps[1]!.status).toBe("current");  // design-system in-review -> first non-approved -> current
+  expect(steps[1]!.status).toBe("current");  // icp in-review -> first non-approved -> current
   expect(steps[2]!.status).toBe("locked");
 });
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Routes, Route, useSearchParams } from "react-router-dom";
 import { Palette, Moon } from "lucide-react";
 import { getTenants } from "@/lib/api";
 import { Workspace } from "@/components/workspace/Workspace";
@@ -11,18 +12,39 @@ import type { TenantSummary } from "@/lib/types";
 
 export default function App() {
   const [tenants, setTenants] = useState<TenantSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string>("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tenantParam = searchParams.get("tenant") ?? "";
   const [themeMode, setThemeMode] = useState<ThemeMode>(() =>
     readThemeMode(typeof localStorage !== "undefined" ? localStorage.getItem(THEME_STORAGE_KEY) : null)
   );
 
   useEffect(() => {
-    void getTenants().then((list) => {
-      setTenants(list);
-      const first = list[0];
-      if (first !== undefined) setSelectedId(first.id);
-    });
+    void getTenants().then(setTenants);
   }, []);
+
+  // Tenant is the URL's source of truth (?tenant=...). If it's missing or stale
+  // once tenants load, normalize to the first tenant without adding history.
+  const known = tenants.some((t) => t.id === tenantParam);
+  useEffect(() => {
+    if (tenants.length === 0 || known) return;
+    const first = tenants[0];
+    if (first === undefined) return;
+    setSearchParams(
+      (prev) => {
+        prev.set("tenant", first.id);
+        return prev;
+      },
+      { replace: true }
+    );
+  }, [tenants, known, setSearchParams]);
+
+  function selectTenant(id: string) {
+    // Switch scope while staying on the current page: only the query changes.
+    setSearchParams((prev) => {
+      prev.set("tenant", id);
+      return prev;
+    });
+  }
 
   function toggleTheme() {
     const next = nextThemeMode(themeMode);
@@ -30,7 +52,7 @@ export default function App() {
     localStorage.setItem(THEME_STORAGE_KEY, next);
   }
 
-  const selectedTenant = tenants.find((t) => t.id === selectedId) ?? tenants[0];
+  const selectedTenant = tenants.find((t) => t.id === tenantParam);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -53,7 +75,7 @@ export default function App() {
               {themeMode === "brand" ? <Palette className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             {tenants.length > 1 ? (
-              <Select value={selectedId} onValueChange={setSelectedId}>
+              <Select value={tenantParam} onValueChange={selectTenant}>
                 <SelectTrigger className="w-48"><SelectValue placeholder="Select tenant" /></SelectTrigger>
                 <SelectContent>
                   {tenants.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
@@ -67,7 +89,18 @@ export default function App() {
       </header>
 
       {selectedTenant !== undefined ? (
-        <Workspace tenant={selectedTenant.id} tenantName={selectedTenant.name} themeMode={themeMode} />
+        (() => {
+          const ws = (
+            <Workspace tenant={selectedTenant.id} tenantName={selectedTenant.name} themeMode={themeMode} />
+          );
+          return (
+            <Routes>
+              <Route path="/" element={ws} />
+              <Route path="/composer/:itemId" element={ws} />
+              <Route path="/:section" element={ws} />
+            </Routes>
+          );
+        })()
       ) : (
         <div className="p-8 text-sm text-muted-foreground">Loading tenants…</div>
       )}
