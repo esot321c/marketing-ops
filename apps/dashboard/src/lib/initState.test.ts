@@ -32,9 +32,9 @@ test("setStageStatus is immutable and records approvedAt on approval", () => {
 test("canEnterStage gates on the previous stage being approved", () => {
   let s = createInitState("example-agency");
   expect(canEnterStage(s, "import-intake")).toBe(true); // first is always enterable
-  expect(canEnterStage(s, "design-system")).toBe(false);
+  expect(canEnterStage(s, "icp")).toBe(false);
   s = setStageStatus(s, "import-intake", "approved");
-  expect(canEnterStage(s, "design-system")).toBe(true);
+  expect(canEnterStage(s, "icp")).toBe(true);
 });
 
 test("isReadyToPost only when all seven approved", () => {

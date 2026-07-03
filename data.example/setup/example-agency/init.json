@@ -2,11 +2,11 @@
   "tenantId": "example-agency",
   "stages": {
     "import-intake": { "status": "approved", "artifactPath": "data/setup/example-agency/intake.md", "approvedAt": "2026-01-01T09:00:00Z" },
-    "design-system": { "status": "in-progress", "artifactPath": null, "approvedAt": null },
-    "voice": { "status": "not-started", "artifactPath": null, "approvedAt": null },
-    "icp": { "status": "not-started", "artifactPath": null, "approvedAt": null },
+    "icp": { "status": "in-progress", "artifactPath": null, "approvedAt": null },
     "vertical": { "status": "not-started", "artifactPath": null, "approvedAt": null },
     "competitor-research": { "status": "not-started", "artifactPath": null, "approvedAt": null },
+    "design-system": { "status": "not-started", "artifactPath": null, "approvedAt": null },
+    "voice": { "status": "not-started", "artifactPath": null, "approvedAt": null },
     "profile-build": { "status": "not-started", "artifactPath": null, "approvedAt": null }
   }
 }

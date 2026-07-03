@@ -2,6 +2,7 @@ import { stageById } from "@/lib/initStages";
 import { IntakeForm } from "@/components/IntakeForm";
 import { StageInputForm } from "@/components/StageInputForm";
 import { ReviewCard } from "@/components/ReviewCard";
+import { StageApproval } from "@/components/setup/StageApproval";
 import { StageArtifact } from "@/components/StageArtifact";
 import { DesignSystemPanel } from "@/components/DesignSystemPanel";
 import type { StageId, StageStatus } from "@/lib/types";
@@ -40,9 +41,7 @@ export function StageView({ tenant, tenantName, stageId, status, onApprove, onCh
       <div className="space-y-4">
         {form}
         {status === "in-review" && (
-          <button type="button" className="ws-btn ws-btn-primary" onClick={onApprove} style={{ width: "100%", justifyContent: "center" }}>
-            Approve {def.label}
-          </button>
+          <StageApproval tenantName={tenantName} stage={def} onApprove={onApprove} />
         )}
         <StageArtifact tenant={tenant} stage={stageId} />
       </div>

@@ -308,7 +308,11 @@
 .ws-prose strong { color: var(--ws-ink); }
 .ws-prose a { color: var(--ws-accent-ink); text-decoration: underline; }
 .ws-prose code { font-family: var(--ws-mono); font-size: 0.9em; background: color-mix(in srgb, var(--ws-band) 55%, var(--ws-paper)); border: 1px solid var(--ws-line); border-radius: 5px; padding: 1px 5px; }
-.ws-prose ul, .ws-prose ol { margin: 0 0 10px; padding-left: 20px; }
+.ws-prose ul, .ws-prose ol { margin: 0 0 10px; padding-left: 22px; }
+.ws-prose ul { list-style: disc outside; }
+.ws-prose ol { list-style: decimal outside; }
+.ws-prose ul ul { list-style: circle outside; }
 .ws-prose li { margin: 3px 0; }
+.ws-prose li::marker { color: var(--ws-slate); }
 .ws-prose blockquote { border-left: 2px solid var(--ws-accent); margin: 10px 0; padding: 2px 0 2px 14px; color: var(--ws-slate); font-style: italic; }
 .ws-prose hr { border: none; border-top: 1px solid var(--ws-line); margin: 16px 0; }

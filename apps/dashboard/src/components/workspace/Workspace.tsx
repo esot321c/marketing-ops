@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { getInitState, getDesignTokens, approveStage } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
-import { stageById } from "@/lib/initStages";
+import { stageById, STAGES } from "@/lib/initStages";
 import { setupSteps, currentStepIndex } from "@/lib/setupNav";
 import type { DesignTokens } from "@/design-system/types";
 import type { StageId, StageStatus } from "@/lib/types";
@@ -17,8 +18,20 @@ import { LearningsPanel } from "@/components/content/LearningsPanel";
 import { Button } from "@/components/ui/button";
 
 const CONTENT_SECTIONS = new Set<Section>(["today", "board", "composer", "cadence", "learnings"]);
+const STAGE_SECTIONS = new Set<string>(STAGES.map((s) => s.id));
+function isSection(v: string): v is Section {
+  return CONTENT_SECTIONS.has(v as Section) || STAGE_SECTIONS.has(v);
+}
 
 export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; tenantName: string; themeMode: ThemeMode }) {
+  const params = useParams<{ section?: string; itemId?: string }>();
+  const navigate = useNavigate();
+  const search = `?tenant=${encodeURIComponent(tenant)}`;
+
+  // /composer/:itemId resolves to the composer section with an open item.
+  const itemId = params.itemId;
+  const routeSection: string | undefined = itemId !== undefined ? "composer" : params.section;
+
   const fetchState = useCallback(() => getInitState(tenant), [tenant]);
   const { data: init, reload } = useLiveData<Awaited<ReturnType<typeof getInitState>>>(
     fetchState,
@@ -30,13 +43,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
     (p) => p.includes(`/${tenant}/design-system/`)
   );
 
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [section, setSection] = useState<Section | null>(null);
-
-  const open = useCallback((id: string) => {
-    setOpenId(id);
-    setSection("composer");
-  }, []);
+  const open = useCallback((id: string) => navigate(`/composer/${id}${search}`), [navigate, search]);
 
   const activeTokens = themeMode === "base" ? BASE_TOKENS : (tokens ?? FALLBACK);
   const style = wsStyle(activeTokens);
@@ -54,17 +61,33 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
   const defaultSection: Section = guided
     ? (steps[currentIdx]?.stageId ?? steps[0]!.stageId)
     : "today";
-  const active: Section = section ?? defaultSection;
+
+  // Resolve the active section from the path. Redirect to the default when it is
+  // absent, unknown, or a content section while setup is still guided (content
+  // stays locked until ready). This is what makes a deep URL survive a refresh.
+  const contentLocked = guided && routeSection !== undefined && CONTENT_SECTIONS.has(routeSection as Section);
+  if (routeSection === undefined || !isSection(routeSection) || contentLocked) {
+    return <Navigate to={`/${defaultSection}${search}`} replace />;
+  }
+  const active: Section = routeSection;
+
+  function go(s: Section) {
+    navigate(s === "composer" ? `/composer/${itemId ?? ""}${search}` : `/${s}${search}`);
+  }
+
+  function hrefFor(s: Section): string {
+    return s === "composer" ? `/composer/${itemId ?? ""}${search}` : `/${s}${search}`;
+  }
 
   function approve(stageId: StageId) {
     void approveStage(tenant, stageId).then((res) => {
       reload();
       if (guided && res.readyToPost) {
-        setSection("today"); // just completed setup -> land on the dashboard
+        go("today"); // just completed setup -> land on the dashboard
       } else if (guided) {
-        // advance to the next step (recompute after reload happens; pick next stage now)
+        // advance to the next step
         const next = setupSteps(res.state).find((s) => s.status === "current");
-        setSection(next ? next.stageId : "today");
+        go(next ? next.stageId : "today");
       }
       // ready mode: a settings re-approve stays on the current section (no forced navigation)
     });
@@ -78,7 +101,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
     if (CONTENT_SECTIONS.has(active)) {
       if (active === "today") return <TodayView tenant={tenant} onOpen={open} />;
       if (active === "board") return <PipelineBoard tenant={tenant} onOpen={open} />;
-      if (active === "composer") return openId ? <Composer tenant={tenant} tenantName={tenantName} itemId={openId} /> : <p className="ws-slate" style={{ fontSize: 13 }}>Open a piece from Today or the board.</p>;
+      if (active === "composer") return itemId ? <Composer tenant={tenant} tenantName={tenantName} itemId={itemId} /> : <p className="ws-slate" style={{ fontSize: 13 }}>Open a piece from Today or the board.</p>;
       if (active === "cadence") return <CadencePanel tenant={tenant} />;
       if (active === "learnings") return <LearningsPanel tenant={tenant} />;
     }
@@ -107,7 +130,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
               <h2>{def?.label ?? stageId}</h2>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <Button variant="outline" disabled={!prev} onClick={() => prev && setSection(prev.stageId)}>← Back</Button>
+              <Button variant="outline" disabled={!prev} onClick={() => prev && go(prev.stageId)}>← Back</Button>
             </div>
           </div>
           {stageNode}
@@ -134,8 +157,8 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
         tenantName={tenantName}
         steps={steps}
         section={active}
-        onSelect={(s) => { setSection(s); }}
-        composerEnabled={openId !== null}
+        hrefFor={hrefFor}
+        composerEnabled={itemId !== undefined}
       />
       <main className="ws-main">{renderMain()}</main>
     </div>

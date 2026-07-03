@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { StageId } from "@/lib/types";
 import type { SetupStep } from "@/lib/setupNav";
 import type { ReactNode } from "react";
@@ -10,7 +11,7 @@ interface WorkspaceSidebarProps {
   tenantName: string;
   steps: SetupStep[];
   section: Section;
-  onSelect: (s: Section) => void;
+  hrefFor: (s: Section) => string;
   composerEnabled: boolean;
 }
 
@@ -18,21 +19,18 @@ interface ItemProps {
   label: string;
   active: boolean;
   disabled?: boolean;
-  onClick?: () => void;
+  href?: string;
   trailing?: ReactNode;
   num?: ReactNode;
 }
 
-function Item({ label, active, disabled, onClick, trailing, num }: ItemProps) {
-  return (
-    <button
-      type="button"
-      className="ws-nav-item"
-      aria-current={active}
-      disabled={disabled}
-      onClick={onClick}
-      style={num !== undefined ? { gap: 10 } : undefined}
-    >
+// Enabled items render as real <Link>s (middle-clickable, open-in-new-tab, and
+// they survive a refresh); disabled/locked items stay <button>s so the
+// `.ws-nav-item:disabled` styling and non-navigability hold.
+function Item({ label, active, disabled, href, trailing, num }: ItemProps) {
+  const style = num !== undefined ? { gap: 10 } : undefined;
+  const inner = (
+    <>
       {num !== undefined ? (
         <span
           className="ws-mono"
@@ -43,6 +41,19 @@ function Item({ label, active, disabled, onClick, trailing, num }: ItemProps) {
       ) : null}
       <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
       {trailing}
+    </>
+  );
+
+  if (href !== undefined && !disabled) {
+    return (
+      <Link to={href} className="ws-nav-item" aria-current={active} style={style}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className="ws-nav-item" aria-current={active} disabled={disabled} style={style}>
+      {inner}
     </button>
   );
 }
@@ -57,7 +68,7 @@ const TUNE: { id: Section; label: string }[] = [
   { id: "learnings", label: "Learnings" },
 ];
 
-export function WorkspaceSidebar({ mode, tenantName, steps, section, onSelect, composerEnabled }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, composerEnabled }: WorkspaceSidebarProps) {
   const guided = mode === "guided";
   const done = steps.filter((s) => s.status === "done").length;
 
@@ -74,36 +85,42 @@ export function WorkspaceSidebar({ mode, tenantName, steps, section, onSelect, c
       {!guided ? (
         <>
           <div className="ws-nav-sec">Content</div>
-          {CONTENT.map((c) => (
-            <Item key={c.id} label={c.label} active={section === c.id} disabled={c.id === "composer" && !composerEnabled} onClick={() => onSelect(c.id)} />
-          ))}
+          {CONTENT.map((c) => {
+            const disabled = c.id === "composer" && !composerEnabled;
+            return (
+              <Item key={c.id} label={c.label} active={section === c.id} disabled={disabled} href={disabled ? undefined : hrefFor(c.id)} />
+            );
+          })}
           <div className="ws-nav-sec">Tune</div>
           {TUNE.map((c) => (
-            <Item key={c.id} label={c.label} active={section === c.id} onClick={() => onSelect(c.id)} />
+            <Item key={c.id} label={c.label} active={section === c.id} href={hrefFor(c.id)} />
           ))}
         </>
       ) : null}
 
       <div className="ws-nav-sec">Setup</div>
-      {steps.map((s, i) => (
-        <Item
-          key={s.stageId}
-          label={s.label}
-          active={section === s.stageId}
-          disabled={guided && s.status === "locked"}
-          onClick={guided && s.status === "locked" ? undefined : () => onSelect(s.stageId)}
-          num={guided ? (s.status === "done" ? "✓" : i + 1) : undefined}
-          trailing={
-            guided
-              ? s.status === "locked"
-                ? <span className="ws-mono" style={{ fontSize: 9, color: "var(--ws-slate)" }}>locked</span>
-                : null
-              : s.status === "done"
-                ? <span style={{ color: "var(--ws-accent)", fontSize: 12 }}>✓</span>
-                : null
-          }
-        />
-      ))}
+      {steps.map((s, i) => {
+        const locked = guided && s.status === "locked";
+        return (
+          <Item
+            key={s.stageId}
+            label={s.label}
+            active={section === s.stageId}
+            disabled={locked}
+            href={locked ? undefined : hrefFor(s.stageId)}
+            num={guided ? (s.status === "done" ? "✓" : i + 1) : undefined}
+            trailing={
+              guided
+                ? s.status === "locked"
+                  ? <span className="ws-mono" style={{ fontSize: 9, color: "var(--ws-slate)" }}>locked</span>
+                  : null
+                : s.status === "done"
+                  ? <span style={{ color: "var(--ws-accent)", fontSize: 12 }}>✓</span>
+                  : null
+            }
+          />
+        );
+      })}
 
       {guided ? (
         <>
