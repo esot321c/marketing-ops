@@ -1,0 +1,314 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.55 0.18 256);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.55 0.18 256);
+}
+
+.dark {
+  --background: oklch(0.16 0.012 256);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.2 0.012 256);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.2 0.012 256);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.62 0.19 256);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.27 0.01 256);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.27 0.01 256);
+  --muted-foreground: oklch(0.7 0.01 256);
+  --accent: oklch(0.3 0.02 256);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.62 0.19 256);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Content workspace — a per-tenant branded canvas. The `--ws-*` custom
+   properties are set inline on the `.ws` root by Workspace from the
+   tenant's design tokens, so each tenant renders in its own brand — its
+   own paper, accent, and fonts. Everything below reads those vars, so the
+   whole workspace re-themes by swapping the tokens.
+--------------------------------------------------------------------------- */
+.ws {
+  background: var(--ws-paper);
+  color: var(--ws-ink);
+  font-family: var(--ws-body);
+  border: 1px solid var(--ws-line);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.ws-serif { font-family: var(--ws-display); }
+.ws-mono { font-family: var(--ws-mono); }
+.ws-ink { color: var(--ws-ink); }
+.ws-soft { color: var(--ws-ink-soft); }
+.ws-slate { color: var(--ws-slate); }
+.ws-accent { color: var(--ws-accent-ink); }
+
+.ws-side {
+  border-right: 1px solid var(--ws-line);
+  background: color-mix(in srgb, var(--ws-band) 45%, var(--ws-paper));
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ws-wordmark {
+  font-family: var(--ws-display);
+  font-weight: 800;
+  font-size: 1.15rem;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ws-ink);
+  padding: 2px 8px 0;
+}
+.ws-kicker {
+  font-family: var(--ws-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ws-accent-ink);
+  padding: 4px 8px 14px;
+}
+.ws-nav-sec {
+  font-family: var(--ws-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ws-slate);
+  padding: 14px 10px 4px;
+}
+.ws-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ws-slate);
+  font-weight: 500;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ws-nav-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ws-band) 70%, transparent);
+  color: var(--ws-ink);
+}
+.ws-nav-item[aria-current="true"] {
+  background: var(--ws-raised);
+  color: var(--ws-ink);
+  box-shadow: inset 2px 0 0 var(--ws-accent), var(--ws-shadow);
+}
+.ws-nav-item:disabled { opacity: 0.45; cursor: default; }
+.ws-nav-count {
+  font-family: var(--ws-mono);
+  font-size: 10.5px;
+  color: var(--ws-slate);
+  background: var(--ws-paper);
+  border: 1px solid var(--ws-line);
+  border-radius: 999px;
+  padding: 0 8px;
+}
+
+.ws-main { padding: 26px 30px; min-width: 0; }
+.ws-h1 {
+  font-family: var(--ws-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: -0.015em;
+  color: var(--ws-ink);
+  margin: 0;
+}
+.ws-sub { color: var(--ws-slate); font-size: 13px; margin-top: 4px; }
+.ws-label {
+  font-family: var(--ws-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ws-slate);
+}
+
+.ws-card {
+  background: var(--ws-raised);
+  border: 1px solid var(--ws-line);
+  border-radius: 14px;
+  box-shadow: var(--ws-shadow);
+}
+.ws-card-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--ws-raised);
+  border: 1px solid var(--ws-line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.06s ease;
+}
+.ws-card-btn:hover { border-color: color-mix(in srgb, var(--ws-accent) 55%, var(--ws-line)); }
+.ws-card-btn:active { transform: translateY(1px); }
+
+.ws-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  padding: 3px 10px;
+  border: 1px solid var(--ws-line);
+  color: var(--ws-slate);
+  background: var(--ws-paper);
+  white-space: nowrap;
+}
+.ws-pill-accent {
+  color: var(--ws-accent-ink);
+  border-color: color-mix(in srgb, var(--ws-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--ws-accent) 12%, var(--ws-paper));
+}
+.ws-pill-mono { font-family: var(--ws-mono); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.ws-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 500;
+  font-size: 13px;
+  border: 1px solid var(--ws-line);
+  background: var(--ws-raised);
+  color: var(--ws-ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ws-btn:hover { border-color: var(--ws-slate); }
+.ws-btn-sm { padding: 6px 11px; font-size: 12px; }
+.ws-btn-primary { background: var(--ws-accent); border-color: var(--ws-accent); color: #fff; }
+.ws-btn-primary:hover { background: var(--ws-accent-ink); border-color: var(--ws-accent-ink); }
+
+.ws-input {
+  width: 100%;
+  border: 1px solid var(--ws-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--ws-raised);
+  color: var(--ws-ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+.ws-input::placeholder { color: var(--ws-slate); }
+.ws-input:focus { outline: 2px solid color-mix(in srgb, var(--ws-accent) 45%, transparent); outline-offset: 1px; }
+
+.ws-rule { width: 34px; height: 2px; background: var(--ws-accent); border: none; border-radius: 2px; }
+.ws-stage {
+  background: color-mix(in srgb, var(--ws-band) 65%, var(--ws-paper));
+  border: 1px solid var(--ws-line);
+  border-radius: 16px;
+  padding: 24px;
+}
+.ws-pre {
+  font-family: var(--ws-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  background: color-mix(in srgb, var(--ws-band) 55%, var(--ws-paper));
+  border: 1px solid var(--ws-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--ws-ink-soft);
+}
+.ws-gate {
+  text-align: center;
+  color: var(--ws-slate);
+  padding: 56px 24px;
+  font-size: 14px;
+}
+
+/* Full-bleed workspace: fills below the slim product bar, no floating island. */
+.ws-fill { border: none; border-radius: 0; min-height: calc(100dvh - 49px); }
+
+/* Guided step header */
+.ws-stephead { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--ws-line); padding-bottom: 16px; margin-bottom: 20px; }
+.ws-stephead .k { font-family: var(--ws-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ws-accent-ink); }
+.ws-stephead h2 { font-family: var(--ws-display); font-weight: 800; font-size: 1.4rem; margin: 2px 0 0; color: var(--ws-ink); }
+
+/* Markdown artifact typography, themed off the workspace tokens (works in Brand or Base). */
+.ws-prose { color: var(--ws-ink-soft); font-size: 13.5px; line-height: 1.7; }
+.ws-prose h1, .ws-prose h2, .ws-prose h3 { font-family: var(--ws-display); color: var(--ws-ink); font-weight: 700; line-height: 1.25; margin: 18px 0 6px; }
+.ws-prose h1 { font-size: 1.4rem; }
+.ws-prose h2 { font-size: 1.15rem; }
+.ws-prose h3 { font-size: 1rem; }
+.ws-prose p { margin: 0 0 10px; }
+.ws-prose strong { color: var(--ws-ink); }
+.ws-prose a { color: var(--ws-accent-ink); text-decoration: underline; }
+.ws-prose code { font-family: var(--ws-mono); font-size: 0.9em; background: color-mix(in srgb, var(--ws-band) 55%, var(--ws-paper)); border: 1px solid var(--ws-line); border-radius: 5px; padding: 1px 5px; }
+.ws-prose ul, .ws-prose ol { margin: 0 0 10px; padding-left: 20px; }
+.ws-prose li { margin: 3px 0; }
+.ws-prose blockquote { border-left: 2px solid var(--ws-accent); margin: 10px 0; padding: 2px 0 2px 14px; color: var(--ws-slate); font-style: italic; }
+.ws-prose hr { border: none; border-top: 1px solid var(--ws-line); margin: 16px 0; }

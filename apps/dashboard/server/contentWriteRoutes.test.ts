@@ -1,0 +1,74 @@
+import { test, expect, beforeAll, afterAll } from "vitest";
+import { Hono } from "hono";
+import { mkdir, rm, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { registerRoutes } from "./routes.js";
+import { contentRoot } from "../src/lib/setupPaths.js";
+
+const app = new Hono();
+registerRoutes(app);
+const dir = path.join(contentRoot, "write-test-agency");
+// tenantExists() reads data/tenants/*.json (via listTenants), not data/setup or
+// data/content — write-test-agency isn't registered locally, so register it here.
+const tenantsRoot = path.resolve(process.cwd(), "..", "..", "data", "tenants");
+const tenantFile = path.join(tenantsRoot, "write-test-agency.json");
+
+beforeAll(async () => {
+  await mkdir(path.join(dir, "requests"), { recursive: true });
+  await mkdir(tenantsRoot, { recursive: true });
+  await writeFile(tenantFile, JSON.stringify({ id: "write-test-agency", name: "Write Test Agency" }));
+});
+afterAll(async () => {
+  await rm(dir, { recursive: true, force: true });
+  await rm(tenantFile, { force: true });
+});
+
+test("POST requests writes a pending request and returns the chat instruction", async () => {
+  const res = await app.request("/api/content/write-test-agency/requests", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ prompt: "a week of posts", channel: "linkedin" }),
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { id: string; instruction: string };
+  expect(body.instruction).toContain("Fulfil content request");
+  const saved = await readFile(path.join(dir, "requests", `${body.id}.json`), "utf8");
+  expect(JSON.parse(saved).status).toBe("pending");
+});
+
+test("POST run in chat mode returns the instruction and does not spawn", async () => {
+  const res = await app.request("/api/content/write-test-agency/run", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "draft-suggestion", mode: "chat" }),
+  });
+  const body = await res.json() as { instruction: string };
+  expect(body.instruction).toContain("Draft the next suggested content piece");
+});
+
+test("POST run rejects an unavailable headless mode", async () => {
+  const res = await app.request("/api/content/write-test-agency/run", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "draft-suggestion", mode: "headless-apikey" }),
+  });
+  // No ANTHROPIC_API_KEY in the test env -> mode unavailable.
+  expect(res.status).toBe(409);
+});
+
+test("POST state validates the target state and updates the item", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "s1.json"), JSON.stringify({
+    id: "s1", tenantId: "write-test-agency", channel: "linkedin", format: "text-post",
+    state: "in_review", title: "T", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const ok = await app.request("/api/content/write-test-agency/s1/state", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to: "approved" }),
+  });
+  expect(ok.status).toBe(200);
+  const bad = await app.request("/api/content/write-test-agency/s1/state", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to: "bogus" }),
+  });
+  expect(bad.status).toBe(400);
+});

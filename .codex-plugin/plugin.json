@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "name": "marketing-ops",
+  "version": "0.1.0",
+  "description": "Local AI marketing operations system for research, positioning, content production, creative review, and analytics learning.",
+  "author": "Marketing-Ops contributors",
+  "license": "MIT",
+  "skills": [
+    {
+      "path": "skills/marketing-setup"
+    },
+    {
+      "path": "skills/marketing-ops"
+    },
+    {
+      "path": "skills/market-research"
+    },
+    {
+      "path": "skills/content-pipeline"
+    },
+    {
+      "path": "skills/social-repurposer"
+    },
+    {
+      "path": "skills/carousel-builder"
+    },
+    {
+      "path": "skills/video-script-builder"
+    }
+  ]
+}

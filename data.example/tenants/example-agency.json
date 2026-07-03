@@ -1,0 +1,8 @@
+{
+  "id": "example-agency",
+  "name": "Example Agency",
+  "domain": "example-agency.dev",
+  "type": "agency",
+  "summary": "Example agency marketing tenant for consulting, services, and inbound demand.",
+  "primaryCta": "Request a workflow audit"
+}

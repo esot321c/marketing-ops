@@ -1,0 +1,20 @@
+{
+  "name": "marketing-ops",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Local AI marketing command center for research, content operations, creative production, and analytics review.",
+  "scripts": {
+    "dev": "pnpm --dir apps/dashboard dev",
+    "build": "pnpm --dir apps/dashboard build",
+    "test": "node --test apps/dashboard/src/lib/*.test.mjs"
+  },
+  "keywords": [
+    "marketing",
+    "ai",
+    "content-ops",
+    "seo",
+    "social-media",
+    "codex"
+  ],
+  "license": "MIT"
+}

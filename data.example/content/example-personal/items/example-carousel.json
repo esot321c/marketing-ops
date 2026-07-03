@@ -1,0 +1,38 @@
+{
+  "id": "example-carousel",
+  "tenantId": "example-personal",
+  "channel": "linkedin",
+  "format": "carousel",
+  "state": "in_review",
+  "title": "Why most product demos win the room and lose the rollout",
+  "angle": "reliability",
+  "pillar": "reliability",
+  "assets": [
+    {
+      "id": "copy",
+      "kind": "copy",
+      "route": "local-harness",
+      "status": "ready",
+      "content": {
+        "type": "slides",
+        "slides": [
+          { "heading": "Why most product demos win the room and lose the rollout", "body": "Notes from shipping software to real teams." },
+          { "heading": "A demo runs on clean, hand-picked inputs.", "body": "Production runs on whatever users actually send.", "dark": true },
+          { "heading": "Make the happy path boring and the edge cases loud.", "body": "Handle the mess before you polish the pitch." },
+          { "heading": "Earn the rollout, not just the applause.", "body": "example.dev" }
+        ]
+      }
+    },
+    {
+      "id": "visual",
+      "kind": "carousel-visual",
+      "route": "external-tool",
+      "tool": "claude-design",
+      "status": "needed",
+      "package": { "kind": "image", "prompt": "Render a 4-slide LinkedIn carousel in the tenant's design system (paper background, accent color, and display/body fonts from design-system/tokens.json). Slide copy as provided." }
+    }
+  ],
+  "schedule": { "status": "unscheduled" },
+  "source": ["voice.md", "vertical.md"],
+  "refineLog": []
+}

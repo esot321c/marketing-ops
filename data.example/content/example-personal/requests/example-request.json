@@ -1,0 +1,9 @@
+{
+  "id": "example-request",
+  "tenantId": "example-personal",
+  "channel": "linkedin",
+  "prompt": "3 carousel angles on shipping reliable software",
+  "createdAt": "2026-07-02T08:00:00Z",
+  "status": "pending",
+  "resultIds": []
+}

@@ -1,0 +1,10 @@
+{
+  "id": "example-personal",
+  "name": "Example Personal Brand",
+  "domain": "example.dev",
+  "type": "personal",
+  "summary": "Example personal marketing tenant for an independent founder or creator.",
+  "primaryObjective": "authority",
+  "secondaryObjectives": ["consulting"],
+  "primaryCta": "Start a conversation"
+}

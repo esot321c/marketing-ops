@@ -1,0 +1,12 @@
+{
+  "phases": [
+    "intake",
+    "research",
+    "visual-brand-guide",
+    "connect-accounts",
+    "build-profiles",
+    "start-posting"
+  ],
+  "note": "Real tenant data belongs in gitignored data/. Public examples belong in data.example/."
+}
+

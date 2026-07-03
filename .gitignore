@@ -1,0 +1,31 @@
+# Logs
+.server-*.log
+
+# Tooling / caches
+.superpowers/
+.agents/
+.codex/
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+.playwright-mcp/
+
+# Env
+.env
+.env.local
+
+# Private local workspace (never committed)
+data/
+!data.example/
+data/generated/
+output/
+
+# Private user-authored working folders (kept local, never published)
+docs/
+strategy/
+
+# Local git history backup created during publishing
+*.git-backup/
+*.bundle

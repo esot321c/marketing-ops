@@ -1,0 +1,12 @@
+{
+  "tenantId": "example-personal",
+  "perWeek": { "linkedin/carousel": 2, "linkedin/text-post": 3, "blog/blog-post": 1 },
+  "engagement": "daily, comment on 3 in-lane posts",
+  "pillars": [
+    { "name": "reliability", "weight": 3 },
+    { "name": "trust", "weight": 2 },
+    { "name": "founder-operator", "weight": 1 },
+    { "name": "product-judgment", "weight": 1 }
+  ],
+  "updatedBy": []
+}
