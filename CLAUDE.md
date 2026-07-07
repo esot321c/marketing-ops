@@ -35,6 +35,10 @@ CHANGELOG, releases, PRs, tags, commit messages):
 - Scan the diff for real names, real domains, and private content. If anything looks personal, STOP
   and ask the human before publishing.
 
+## Surfacing capabilities
+
+When the user asks for a campaign, an SEO or content strategy, keyword research, competitor research, or an analytics review, save the result to `data/work/<tenant>/<type>/<slug>.md` with `title`, `created`, and `status` frontmatter so the dashboard shows it. The five types are `campaigns`, `strategy`, `keywords`, `research`, and `analytics`. When a workspace is ready, proactively tell the user these capabilities exist and how to ask, for example by pointing them at the Ask panel in the dashboard.
+
 ## Deleting or moving files
 
 - Never delete or move a file without confirming with the human first. Private content may need to

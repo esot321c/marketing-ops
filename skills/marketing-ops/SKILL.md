@@ -51,6 +51,20 @@ If login is required, open the relevant page, pause, ask the user to log in manu
 
 Use small batches on logged-in platforms. Do not run rapid repeated searches, infinite scroll loops, or broad automated scraping. Capture the current page, save notes, and resume in later passes when more authenticated research is needed.
 
+## Capability outputs
+
+When the user asks for marketing work matching one of these phrases, run the associated workflow and save the result to the specified path. The dashboard lists and renders files from these locations, so saving to the exact path with the frontmatter makes them appear.
+
+| When the user asks | Run | Save to |
+|---|---|---|
+| `Plan a campaign for <Tenant Name>` | the campaign operating sequence | `data/work/<tenant>/campaigns/<slug>.md` |
+| `Draft an SEO and content strategy for <Tenant Name>` | content-pipeline (with market-research input) | `data/work/<tenant>/strategy/<slug>.md` |
+| `Research keywords for <Tenant Name>` | market-research | `data/work/<tenant>/keywords/<slug>.md` |
+| `Run competitor research for <Tenant Name>` | market-research | `data/work/<tenant>/research/<slug>.md` |
+| `Review analytics for <Tenant Name>` | analytics review then next actions | `data/work/<tenant>/analytics/<slug>.md` |
+
+Each saved file starts with frontmatter fields `title`, `created` (ISO date), and `status` (`draft`, `active`, or `done`), followed by the body.
+
 ## Human Review
 
 Never publish, send, schedule, or externally submit content without explicit user approval at action time.
