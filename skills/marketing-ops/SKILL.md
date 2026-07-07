@@ -65,6 +65,10 @@ When the user asks for marketing work matching one of these phrases, run the ass
 
 Each saved file starts with frontmatter fields `title`, `created` (ISO date), and `status` (`draft`, `active`, or `done`), followed by the body.
 
+### Next steps after Init
+
+Once a tenant is `readyToPost`, run the prep capabilities in order: competitor research, keyword research, content and SEO strategy, then a first campaign. Analytics follows once there are live posts. Surface the outstanding prep to the user proactively and when asked what is next; do not leave it for the user to find. Save each output to `data/work/<tenant>/<type>/<slug>.md` with the `title`, `created`, and `status` frontmatter.
+
 ## Human Review
 
 Never publish, send, schedule, or externally submit content without explicit user approval at action time.
