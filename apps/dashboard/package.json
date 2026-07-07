@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,web \"pnpm:dev:server\" \"pnpm:dev:web\"",
-    "dev:server": "tsx server/index.ts",
-    "dev:server:watch": "tsx watch server/index.ts",
+    "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite",
     "build": "tsc -b && vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
