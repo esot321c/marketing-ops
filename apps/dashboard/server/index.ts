@@ -5,9 +5,11 @@ import { streamSSE } from "hono/streaming";
 import { addClient, removeClient } from "./sse.js";
 import { startWatcher } from "./watcher.js";
 import { registerRoutes } from "./routes.js";
+import { registerWorkRoutes } from "./workRoutes.js";
 
 const app = new Hono();
 registerRoutes(app);
+registerWorkRoutes(app);
 
 app.get("/events", (c) =>
   streamSSE(c, async (stream) => {
