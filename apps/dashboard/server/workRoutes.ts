@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { isValidTenantId, resolveWorkTypeDir, resolveWorkFile } from "../src/lib/setupPaths.js";
-import { isCapabilityId } from "../src/lib/capabilities.js";
+import { isCapabilityId, CAPABILITIES } from "../src/lib/capabilities.js";
 
 export function parseFrontmatter(md: string): { data: Record<string, string>; body: string } {
   const lines = md.split("\n");
@@ -39,6 +39,18 @@ function toSummary(slug: string, data: Record<string, string>): WorkSummary {
 }
 
 export function registerWorkRoutes(app: Hono) {
+  app.get("/api/work/:tenant", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!isValidTenantId(tenant)) return c.json({ error: "Invalid tenant" }, 400);
+    const counts: Record<string, number> = {};
+    for (const cap of CAPABILITIES) {
+      const dir = resolveWorkTypeDir(tenant, cap.id);
+      const names = dir ? await readdir(dir).catch(() => null) : null;
+      counts[cap.id] = names === null ? 0 : names.filter((n) => n.endsWith(".md")).length;
+    }
+    return c.json(counts);
+  });
+
   app.get("/api/work/:tenant/:type", async (c) => {
     const tenant = c.req.param("tenant");
     const type = c.req.param("type");

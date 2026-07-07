@@ -6,6 +6,7 @@ export interface Capability {
   promptTemplate: string;
   skill: string;
   readOnly?: boolean;
+  prep?: boolean;
 }
 
 export const CAPABILITIES: Capability[] = [
@@ -16,6 +17,7 @@ export const CAPABILITIES: Capability[] = [
     description: "See how competitors position, what they publish, and where the gaps are.",
     promptTemplate: "Run competitor research for {tenant}",
     skill: "market-research",
+    prep: true,
   },
   {
     id: "keywords",
@@ -24,6 +26,7 @@ export const CAPABILITIES: Capability[] = [
     description: "Find the search terms and topics worth targeting.",
     promptTemplate: "Research keywords for {tenant}",
     skill: "market-research",
+    prep: true,
   },
   {
     id: "strategy",
@@ -32,6 +35,7 @@ export const CAPABILITIES: Capability[] = [
     description: "Turn that research into a plan for your site, blog, and SEO.",
     promptTemplate: "Draft an SEO and content strategy for {tenant}",
     skill: "content-pipeline",
+    prep: true,
   },
   {
     id: "campaigns",
@@ -40,6 +44,7 @@ export const CAPABILITIES: Capability[] = [
     description: "Turn a goal into a coordinated push with a brief and a schedule.",
     promptTemplate: "Plan a campaign for {tenant}",
     skill: "marketing-ops",
+    prep: true,
   },
   {
     id: "analytics",
@@ -62,4 +67,25 @@ export function promptFor(cap: Capability, tenantName: string): string {
 
 export function isCapabilityId(id: string): boolean {
   return CAPABILITIES.some((c) => c.id === id);
+}
+
+// prep capabilities, in registry order
+export function prepCapabilities(): Capability[] {
+  return CAPABILITIES.filter((c) => c.prep === true);
+}
+
+// prep capabilities whose count is 0 or missing, in registry order
+export function outstandingPrep(counts: Record<string, number>): Capability[] {
+  return prepCapabilities().filter((c) => (counts[c.id] ?? 0) === 0);
+}
+
+// for a given capability, the prep capabilities BEFORE it in order whose count is 0/missing
+export function priorPrepMissing(
+  capabilityId: string,
+  counts: Record<string, number>
+): Capability[] {
+  const prep = prepCapabilities();
+  const index = prep.findIndex((c) => c.id === capabilityId);
+  if (index === -1) return [];
+  return prep.slice(0, index).filter((c) => (counts[c.id] ?? 0) === 0);
 }

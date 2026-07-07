@@ -11,6 +11,10 @@ registerWorkRoutes(app);
 const tenant = "work-test-agency";
 const campaignsDir = path.join(workRoot, tenant, "campaigns");
 
+const summaryTenant = "work-summary-agency";
+const summaryCampaignsDir = path.join(workRoot, summaryTenant, "campaigns");
+const summaryResearchDir = path.join(workRoot, summaryTenant, "research");
+
 beforeAll(async () => {
   await mkdir(campaignsDir, { recursive: true });
   await writeFile(
@@ -23,10 +27,17 @@ beforeAll(async () => {
     "---\ntitle: Beta\ncreated: 2026-03-01\nstatus: active\n---\nBeta body line.\n",
     "utf8"
   );
+
+  await mkdir(summaryCampaignsDir, { recursive: true });
+  await writeFile(path.join(summaryCampaignsDir, "a.md"), "---\ntitle: A\n---\nbody\n", "utf8");
+  await writeFile(path.join(summaryCampaignsDir, "b.md"), "---\ntitle: B\n---\nbody\n", "utf8");
+  await mkdir(summaryResearchDir, { recursive: true });
+  await writeFile(path.join(summaryResearchDir, "a.md"), "---\ntitle: A\n---\nbody\n", "utf8");
 });
 
 afterAll(async () => {
   await rm(path.join(workRoot, tenant), { recursive: true, force: true });
+  await rm(path.join(workRoot, summaryTenant), { recursive: true, force: true });
 });
 
 test("GET list returns entries sorted by created desc, titles parsed", async () => {
@@ -81,4 +92,22 @@ test("parseFrontmatter returns empty data and the original body when there is no
   const { data, body } = parseFrontmatter("no fm");
   expect(data).toEqual({});
   expect(body).toBe("no fm");
+});
+
+test("GET summary returns counts for all five capabilities", async () => {
+  const res = await app.request(`/api/work/${summaryTenant}`);
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body).toEqual({
+    research: 1,
+    keywords: 0,
+    strategy: 0,
+    campaigns: 2,
+    analytics: 0,
+  });
+});
+
+test("GET summary with bad tenant id returns 400", async () => {
+  const res = await app.request(`/api/work/Bad_Tenant`);
+  expect(res.status).toBe(400);
 });

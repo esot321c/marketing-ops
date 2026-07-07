@@ -11,3 +11,4 @@ export interface ProfileSpec { tenantId: string; channel: ProfileChannel; state:
 export interface TenantSummary { id: string; name: string; }
 export interface WorkArtifactSummary { slug: string; title: string; created: string; status: string; }
 export interface WorkArtifact extends WorkArtifactSummary { body: string; }
+export type WorkCounts = Record<string, number>;

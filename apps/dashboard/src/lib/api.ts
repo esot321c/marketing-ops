@@ -1,4 +1,4 @@
-import type { InitState, TenantSummary, ProfileSpec, WorkArtifactSummary, WorkArtifact } from "@/lib/types";
+import type { InitState, TenantSummary, ProfileSpec, WorkArtifactSummary, WorkArtifact, WorkCounts } from "@/lib/types";
 import type { DesignTokens } from "@/design-system/types";
 import type { ContentItem, ContentState, RunMode, AgentAction, Learning, Cadence } from "@/lib/contentTypes";
 import type { Suggestion } from "@/lib/planner";
@@ -178,6 +178,10 @@ export function postRun(tenant: string, action: AgentAction, mode: RunMode, targ
 
 export function listWork(tenant: string, type: string): Promise<WorkArtifactSummary[]> {
   return jsonRequest<WorkArtifactSummary[]>(`/api/work/${encodeURIComponent(tenant)}/${encodeURIComponent(type)}`);
+}
+
+export function getWorkSummary(tenant: string): Promise<WorkCounts> {
+  return jsonRequest<WorkCounts>(`/api/work/${encodeURIComponent(tenant)}`);
 }
 
 export function getWork(tenant: string, type: string, slug: string): Promise<WorkArtifact> {
