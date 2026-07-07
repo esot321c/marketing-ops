@@ -226,6 +226,13 @@ export function registerRoutes(app: Hono) {
     return c.json(todayView(await readItems(tenant), cadence, today));
   });
 
+  app.get("/api/content/:tenant/cadence", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    const cadence = (await readCadence(tenant)) ?? { tenantId: tenant, perWeek: {}, engagement: "", pillars: [], updatedBy: [] };
+    return c.json(cadence);
+  });
+
   app.get("/api/content/:tenant/run-modes", async (c) => {
     const tenant = c.req.param("tenant");
     if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
@@ -338,8 +345,8 @@ export function registerRoutes(app: Hono) {
     return c.json({ ok: true, file: rel });
   });
 
-  // Registered last so the literal sub-paths above (today, run-modes, learnings)
-  // match before this catch-all :id route.
+  // Registered last so the literal sub-paths above (today, cadence, run-modes,
+  // learnings) match before this catch-all :id route.
   app.get("/api/content/:tenant/:id", async (c) => {
     const tenant = c.req.param("tenant");
     if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);

@@ -1,6 +1,6 @@
 import type { InitState, TenantSummary, ProfileSpec, WorkArtifactSummary, WorkArtifact } from "@/lib/types";
 import type { DesignTokens } from "@/design-system/types";
-import type { ContentItem, ContentState, RunMode, AgentAction, Learning } from "@/lib/contentTypes";
+import type { ContentItem, ContentState, RunMode, AgentAction, Learning, Cadence } from "@/lib/contentTypes";
 import type { Suggestion } from "@/lib/planner";
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
@@ -138,6 +138,10 @@ export function getBoard(tenant: string) {
 
 export function getToday(tenant: string) {
   return jsonRequest<{ due: ContentItem[]; suggested: Suggestion[] }>(`/api/content/${encodeURIComponent(tenant)}/today`);
+}
+
+export function getCadence(tenant: string) {
+  return jsonRequest<Cadence>(`/api/content/${encodeURIComponent(tenant)}/cadence`);
 }
 
 export function getItem(tenant: string, id: string) {

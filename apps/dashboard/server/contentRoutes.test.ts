@@ -48,3 +48,45 @@ test("GET unknown tenant is 404", async () => {
   const res = await app.request("/api/content/not a tenant/today");
   expect(res.status).toBe(404);
 });
+
+test("GET cadence returns the seeded cadence for a tenant with known targets and pillars", async () => {
+  const seededDir = path.join(contentRoot, "cadence-seeded-tenant");
+  const seededTenantFile = path.join(tenantsRoot, "cadence-seeded-tenant.json");
+  await mkdir(seededDir, { recursive: true });
+  await writeFile(seededTenantFile, JSON.stringify({ id: "cadence-seeded-tenant", name: "Cadence Seeded Tenant" }));
+  await writeFile(path.join(seededDir, "cadence.json"), JSON.stringify({
+    tenantId: "cadence-seeded-tenant",
+    perWeek: { "linkedin/carousel": 2, "blog/blog-post": 1 },
+    engagement: "daily, comment on 3 in-lane posts",
+    pillars: [{ name: "reliability", weight: 3 }],
+    updatedBy: [],
+  }));
+  try {
+    const res = await app.request("/api/content/cadence-seeded-tenant/cadence");
+    expect(res.status).toBe(200);
+    const body = await res.json() as { tenantId: string; perWeek: Record<string, number>; pillars: { name: string; weight: number }[] };
+    expect(body.tenantId).toBe("cadence-seeded-tenant");
+    expect(body.perWeek).toEqual({ "linkedin/carousel": 2, "blog/blog-post": 1 });
+    expect(body.pillars).toEqual([{ name: "reliability", weight: 3 }]);
+  } finally {
+    await rm(seededDir, { recursive: true, force: true });
+    await rm(seededTenantFile, { force: true });
+  }
+});
+
+test("GET cadence for a tenant with no cadence.json returns the empty default", async () => {
+  const noCadenceDir = path.join(contentRoot, "no-cadence-tenant");
+  const noCadenceTenantFile = path.join(tenantsRoot, "no-cadence-tenant.json");
+  await mkdir(noCadenceDir, { recursive: true });
+  await writeFile(noCadenceTenantFile, JSON.stringify({ id: "no-cadence-tenant", name: "No Cadence Tenant" }));
+  try {
+    const res = await app.request("/api/content/no-cadence-tenant/cadence");
+    expect(res.status).toBe(200);
+    const body = await res.json() as { tenantId: string; perWeek: Record<string, number> };
+    expect(body.tenantId).toBe("no-cadence-tenant");
+    expect(body.perWeek).toEqual({});
+  } finally {
+    await rm(noCadenceDir, { recursive: true, force: true });
+    await rm(noCadenceTenantFile, { force: true });
+  }
+});
