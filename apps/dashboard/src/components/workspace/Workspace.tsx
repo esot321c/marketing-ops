@@ -38,21 +38,17 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
   const itemId = params.itemId;
   const routeSection: string | undefined = itemId !== undefined ? "composer" : params.section;
 
+  // Memoize both callbacks per tenant so useLiveData's EventSource effect only
+  // re-subscribes when the tenant changes, not on every render.
   const fetchState = useCallback(() => getInitState(tenant), [tenant]);
-  const { data: init, reload } = useLiveData<Awaited<ReturnType<typeof getInitState>>>(
-    fetchState,
-    (p) => p.includes(`/setup/${tenant}/`)
-  );
+  const refetchSetup = useCallback((p: string) => p.includes(`/setup/${tenant}/`), [tenant]);
+  const { data: init, reload } = useLiveData<Awaited<ReturnType<typeof getInitState>>>(fetchState, refetchSetup);
   const fetchTokens = useCallback(() => getDesignTokens(tenant), [tenant]);
-  const { data: tokens } = useLiveData<DesignTokens | null>(
-    fetchTokens,
-    (p) => p.includes(`/${tenant}/design-system/`)
-  );
+  const refetchTokens = useCallback((p: string) => p.includes(`/${tenant}/design-system/`), [tenant]);
+  const { data: tokens } = useLiveData<DesignTokens | null>(fetchTokens, refetchTokens);
   const fetchSummary = useCallback(() => getWorkSummary(tenant), [tenant]);
-  const { data: counts } = useLiveData<WorkCounts | null>(
-    fetchSummary,
-    (p) => p.includes(`/work/${tenant}/`)
-  );
+  const refetchWork = useCallback((p: string) => p.includes(`/work/${tenant}/`), [tenant]);
+  const { data: counts } = useLiveData<WorkCounts | null>(fetchSummary, refetchWork);
 
   const open = useCallback((id: string) => navigate(`/composer/${id}${search}`), [navigate, search]);
 
