@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useParams, useNavigate, Navigate } from "react-router-dom";
-import { getInitState, getDesignTokens, approveStage } from "@/lib/api";
+import { getInitState, getDesignTokens, approveStage, getWorkSummary } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import { stageById, STAGES } from "@/lib/initStages";
 import { setupSteps, currentStepIndex } from "@/lib/setupNav";
@@ -16,9 +16,11 @@ import { Composer } from "@/components/content/Composer";
 import { CadencePanel } from "@/components/content/CadencePanel";
 import { LearningsPanel } from "@/components/content/LearningsPanel";
 import { Button } from "@/components/ui/button";
-import { CAPABILITIES } from "@/lib/capabilities";
+import { CAPABILITIES, outstandingPrep } from "@/lib/capabilities";
 import { WorkView } from "@/components/work/WorkView";
 import { AskView } from "@/components/work/AskView";
+import { NextSteps } from "@/components/work/NextSteps";
+import type { WorkCounts } from "@/lib/types";
 
 const CONTENT_SECTIONS = new Set<Section>(["today", "board", "composer", "cadence", "learnings"]);
 const STAGE_SECTIONS = new Set<string>(STAGES.map((s) => s.id));
@@ -46,8 +48,16 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
     fetchTokens,
     (p) => p.includes(`/${tenant}/design-system/`)
   );
+  const fetchSummary = useCallback(() => getWorkSummary(tenant), [tenant]);
+  const { data: counts } = useLiveData<WorkCounts | null>(
+    fetchSummary,
+    (p) => p.includes(`/work/${tenant}/`)
+  );
 
   const open = useCallback((id: string) => navigate(`/composer/${id}${search}`), [navigate, search]);
+
+  const outstanding = outstandingPrep(counts ?? {});
+  const outstandingIds = new Set(outstanding.map((c) => c.id));
 
   const activeTokens = themeMode === "base" ? BASE_TOKENS : (tokens ?? FALLBACK);
   const style = wsStyle(activeTokens);
@@ -106,7 +116,14 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
 
   function renderMain() {
     if (CONTENT_SECTIONS.has(active)) {
-      if (active === "today") return <TodayView tenant={tenant} onOpen={open} />;
+      if (active === "today") {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <NextSteps tenantName={tenantName} outstanding={outstanding} />
+            <TodayView tenant={tenant} onOpen={open} />
+          </div>
+        );
+      }
       if (active === "board") return <PipelineBoard tenant={tenant} onOpen={open} />;
       if (active === "composer") return itemId ? <Composer tenant={tenant} tenantName={tenantName} itemId={itemId} /> : <p className="ws-slate" style={{ fontSize: 13 }}>Open a piece from Today or the board.</p>;
       if (active === "cadence") return <CadencePanel tenant={tenant} tenantName={tenantName} />;
@@ -172,6 +189,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
         section={active}
         hrefFor={hrefFor}
         composerEnabled={itemId !== undefined}
+        outstanding={outstandingIds}
       />
       <main className="ws-main">{renderMain()}</main>
     </div>
