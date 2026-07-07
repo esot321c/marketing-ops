@@ -1,4 +1,5 @@
 import path from "node:path";
+import { isCapabilityId } from "./capabilities.js";
 
 // data/ lives two levels up from the dashboard app cwd (matches researchAssets.mjs).
 export const setupRoot = path.resolve(process.cwd(), "..", "..", "data", "setup");
@@ -128,4 +129,23 @@ export function resolveContentFile(tenantId: string, name: string): string | nul
   const dir = resolveContentDir(tenantId);
   if (!dir || !CONTENT_FILES.has(name)) return null;
   return path.join(dir, name);
+}
+
+// data/work lives alongside data/content and data/setup.
+export const workRoot = path.resolve(process.cwd(), "..", "..", "data", "work");
+
+export function resolveWorkTypeDir(tenantId: string, type: string): string | null {
+  if (!isValidTenantId(tenantId) || !isCapabilityId(type)) return null;
+  const tenantDir = path.resolve(workRoot, tenantId);
+  if (tenantDir !== path.join(workRoot, tenantId)) return null;
+  if (!tenantDir.startsWith(workRoot + path.sep)) return null;
+  const resolved = path.resolve(tenantDir, type);
+  return resolved.startsWith(tenantDir + path.sep) ? resolved : null;
+}
+
+export function resolveWorkFile(tenantId: string, type: string, slug: string): string | null {
+  const dir = resolveWorkTypeDir(tenantId, type);
+  if (!dir || !isSafeSegment(slug)) return null;
+  const resolved = path.resolve(dir, `${slug}.md`);
+  return resolved.startsWith(dir + path.sep) ? resolved : null;
 }

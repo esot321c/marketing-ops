@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useParams, useNavigate, Navigate } from "react-router-dom";
-import { getInitState, getDesignTokens, approveStage } from "@/lib/api";
+import { getInitState, getDesignTokens, approveStage, getWorkSummary } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import { stageById, STAGES } from "@/lib/initStages";
 import { setupSteps, currentStepIndex } from "@/lib/setupNav";
@@ -16,11 +16,17 @@ import { Composer } from "@/components/content/Composer";
 import { CadencePanel } from "@/components/content/CadencePanel";
 import { LearningsPanel } from "@/components/content/LearningsPanel";
 import { Button } from "@/components/ui/button";
+import { CAPABILITIES, outstandingPrep } from "@/lib/capabilities";
+import { WorkView } from "@/components/work/WorkView";
+import { AskView } from "@/components/work/AskView";
+import { NextSteps } from "@/components/work/NextSteps";
+import type { WorkCounts } from "@/lib/types";
 
 const CONTENT_SECTIONS = new Set<Section>(["today", "board", "composer", "cadence", "learnings"]);
 const STAGE_SECTIONS = new Set<string>(STAGES.map((s) => s.id));
+const WORK_SECTIONS = new Set<string>(CAPABILITIES.map((c) => c.id));
 function isSection(v: string): v is Section {
-  return CONTENT_SECTIONS.has(v as Section) || STAGE_SECTIONS.has(v);
+  return CONTENT_SECTIONS.has(v as Section) || STAGE_SECTIONS.has(v) || WORK_SECTIONS.has(v) || v === "ask";
 }
 
 export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; tenantName: string; themeMode: ThemeMode }) {
@@ -32,18 +38,22 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
   const itemId = params.itemId;
   const routeSection: string | undefined = itemId !== undefined ? "composer" : params.section;
 
+  // Memoize both callbacks per tenant so useLiveData's EventSource effect only
+  // re-subscribes when the tenant changes, not on every render.
   const fetchState = useCallback(() => getInitState(tenant), [tenant]);
-  const { data: init, reload } = useLiveData<Awaited<ReturnType<typeof getInitState>>>(
-    fetchState,
-    (p) => p.includes(`/setup/${tenant}/`)
-  );
+  const refetchSetup = useCallback((p: string) => p.includes(`/setup/${tenant}/`), [tenant]);
+  const { data: init, reload } = useLiveData<Awaited<ReturnType<typeof getInitState>>>(fetchState, refetchSetup);
   const fetchTokens = useCallback(() => getDesignTokens(tenant), [tenant]);
-  const { data: tokens } = useLiveData<DesignTokens | null>(
-    fetchTokens,
-    (p) => p.includes(`/${tenant}/design-system/`)
-  );
+  const refetchTokens = useCallback((p: string) => p.includes(`/${tenant}/design-system/`), [tenant]);
+  const { data: tokens } = useLiveData<DesignTokens | null>(fetchTokens, refetchTokens);
+  const fetchSummary = useCallback(() => getWorkSummary(tenant), [tenant]);
+  const refetchWork = useCallback((p: string) => p.includes(`/work/${tenant}/`), [tenant]);
+  const { data: counts } = useLiveData<WorkCounts | null>(fetchSummary, refetchWork);
 
   const open = useCallback((id: string) => navigate(`/composer/${id}${search}`), [navigate, search]);
+
+  const outstanding = outstandingPrep(counts ?? {});
+  const outstandingIds = new Set(outstanding.map((c) => c.id));
 
   const activeTokens = themeMode === "base" ? BASE_TOKENS : (tokens ?? FALLBACK);
   const style = wsStyle(activeTokens);
@@ -63,9 +73,12 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
     : "today";
 
   // Resolve the active section from the path. Redirect to the default when it is
-  // absent, unknown, or a content section while setup is still guided (content
-  // stays locked until ready). This is what makes a deep URL survive a refresh.
-  const contentLocked = guided && routeSection !== undefined && CONTENT_SECTIONS.has(routeSection as Section);
+  // absent, unknown, or a content/work/ask section while setup is still guided
+  // (these all stay locked until ready). This is what makes a deep URL survive a refresh.
+  const contentLocked =
+    guided &&
+    routeSection !== undefined &&
+    (CONTENT_SECTIONS.has(routeSection as Section) || WORK_SECTIONS.has(routeSection) || routeSection === "ask");
   if (routeSection === undefined || !isSection(routeSection) || contentLocked) {
     return <Navigate to={`/${defaultSection}${search}`} replace />;
   }
@@ -99,11 +112,24 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
 
   function renderMain() {
     if (CONTENT_SECTIONS.has(active)) {
-      if (active === "today") return <TodayView tenant={tenant} onOpen={open} />;
+      if (active === "today") {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <NextSteps tenantName={tenantName} outstanding={outstanding} />
+            <TodayView tenant={tenant} onOpen={open} />
+          </div>
+        );
+      }
       if (active === "board") return <PipelineBoard tenant={tenant} onOpen={open} />;
       if (active === "composer") return itemId ? <Composer tenant={tenant} tenantName={tenantName} itemId={itemId} /> : <p className="ws-slate" style={{ fontSize: 13 }}>Open a piece from Today or the board.</p>;
-      if (active === "cadence") return <CadencePanel tenant={tenant} />;
+      if (active === "cadence") return <CadencePanel tenant={tenant} tenantName={tenantName} />;
       if (active === "learnings") return <LearningsPanel tenant={tenant} />;
+    }
+    if (WORK_SECTIONS.has(active)) {
+      return <WorkView tenant={tenant} tenantName={tenantName} capabilityId={active} counts={counts ?? {}} />;
+    }
+    if (active === "ask") {
+      return <AskView tenantName={tenantName} />;
     }
     // otherwise `active` is a setup stage id
     const stageId = active as StageId;
@@ -159,6 +185,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
         section={active}
         hrefFor={hrefFor}
         composerEnabled={itemId !== undefined}
+        outstanding={outstandingIds}
       />
       <main className="ws-main">{renderMain()}</main>
     </div>

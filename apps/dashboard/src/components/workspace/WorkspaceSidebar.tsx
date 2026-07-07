@@ -2,9 +2,12 @@ import { Link } from "react-router-dom";
 import type { StageId } from "@/lib/types";
 import type { SetupStep } from "@/lib/setupNav";
 import type { ReactNode } from "react";
+import { CAPABILITIES } from "@/lib/capabilities";
 
 export type Section =
-  | "today" | "board" | "composer" | "cadence" | "learnings" | StageId;
+  | "today" | "board" | "composer" | "cadence" | "learnings"
+  | "campaigns" | "strategy" | "keywords" | "research" | "analytics" | "ask"
+  | StageId;
 
 interface WorkspaceSidebarProps {
   mode: "guided" | "ready";
@@ -13,6 +16,7 @@ interface WorkspaceSidebarProps {
   section: Section;
   hrefFor: (s: Section) => string;
   composerEnabled: boolean;
+  outstanding?: Set<string>;
 }
 
 interface ItemProps {
@@ -68,7 +72,7 @@ const TUNE: { id: Section; label: string }[] = [
   { id: "learnings", label: "Learnings" },
 ];
 
-export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, composerEnabled }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, composerEnabled, outstanding }: WorkspaceSidebarProps) {
   const guided = mode === "guided";
   const done = steps.filter((s) => s.status === "done").length;
 
@@ -95,6 +99,21 @@ export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, co
           {TUNE.map((c) => (
             <Item key={c.id} label={c.label} active={section === c.id} href={hrefFor(c.id)} />
           ))}
+          <div className="ws-nav-sec">Work</div>
+          {CAPABILITIES.map((cap) => (
+            <Item
+              key={cap.id}
+              label={cap.label}
+              active={section === cap.id}
+              href={hrefFor(cap.id as Section)}
+              trailing={
+                outstanding?.has(cap.id)
+                  ? <span className="ws-mono" style={{ fontSize: 9, color: "var(--ws-slate)" }}>to do</span>
+                  : null
+              }
+            />
+          ))}
+          <Item label="Ask" active={section === "ask"} href={hrefFor("ask")} />
         </>
       ) : null}
 

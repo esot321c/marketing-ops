@@ -5,6 +5,20 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-07
+
+The agent's work becomes visible in the dashboard: capability views, a real Cadence page, and the outstanding prep the agent still owes after Init.
+
+### Added
+
+- **Capability work views.** Five views (Research, SEO / Keywords, Strategy, Campaigns, Analytics) surface the agent's marketing outputs. Each capability's files live under a per-tenant `data/work/<tenant>/<type>/` area as markdown with `title`, `created`, and `status` frontmatter, read through a hardened `/api/work` file adapter. Every view carries a one-line description and a copy-paste prompt to run that capability, and an Ask panel lists them all in a suggested order.
+- **Outstanding prep, surfaced everywhere.** After Init, the prep the agent still owes (research, keyword research, strategy, and a first campaign, in that order) shows as "to do" markers in the sidebar, a Next steps card on Today, and a per-page banner that recommends the earlier steps when you open a later one. Analytics is treated as post-publish, so it is never flagged. Guidance in the marketing-ops skill and the project instructions tells the agent to surface and do this proactively rather than leaving it for the user to find.
+- **Richer Cadence page.** Cadence now shows the real cadence: weekly targets per channel and format, the pillar weights the learning loop tunes, the engagement routine, and the tuning history, plus a prompt to ask the agent to adjust it.
+
+### Changed
+
+- Capabilities are ordered research, keywords, strategy, campaigns, then analytics, and each carries a short description shown in the Ask panel and its view.
+
 ## [0.3.0] - 2026-07-03
 
 Setup runs strategy-first, saved stages can be refined in chat, and the workspace lives at real URLs.

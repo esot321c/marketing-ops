@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { test, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactElement } from "react";
 import { WorkspaceSidebar } from "./WorkspaceSidebar.js";
@@ -33,6 +33,35 @@ test("enabled nav items are links that carry the tenant query", () => {
   renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" hrefFor={hrefFor} composerEnabled={false} />);
   const today = screen.getByRole("link", { name: /Today/i });
   expect(today.getAttribute("href")).toBe("/today?tenant=t");
+});
+
+test("ready mode shows the Work group with a Campaigns link and an Ask link", () => {
+  const steps = setupSteps(state(() => "approved"));
+  renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" hrefFor={hrefFor} composerEnabled={false} />);
+  const campaigns = screen.getByRole("link", { name: /Campaigns/i }) as HTMLAnchorElement;
+  expect(campaigns.getAttribute("href")).toBe("/campaigns?tenant=t");
+  const ask = screen.getByRole("link", { name: /Ask/i }) as HTMLAnchorElement;
+  expect(ask.getAttribute("href")).toBe("/ask?tenant=t");
+});
+
+test("ready mode marks an outstanding prep capability as to do, but not other Work items", () => {
+  const steps = setupSteps(state(() => "approved"));
+  renderSidebar(
+    <WorkspaceSidebar
+      mode="ready"
+      tenantName="Example Tenant"
+      steps={steps}
+      section="today"
+      hrefFor={hrefFor}
+      composerEnabled={false}
+      outstanding={new Set(["research"])}
+    />
+  );
+  const research = screen.getByRole("link", { name: /Research/i });
+  expect(within(research).getByText("to do")).toBeTruthy();
+  const campaigns = screen.getByRole("link", { name: /Campaigns/i });
+  expect(within(campaigns).queryByText("to do")).toBeNull();
+  expect(screen.getAllByText("to do")).toHaveLength(1);
 });
 
 test("guided mode: the current step is a link, a later step is a disabled button", () => {

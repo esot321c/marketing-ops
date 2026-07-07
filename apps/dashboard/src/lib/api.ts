@@ -1,6 +1,6 @@
-import type { InitState, TenantSummary, ProfileSpec } from "@/lib/types";
+import type { InitState, TenantSummary, ProfileSpec, WorkArtifactSummary, WorkArtifact, WorkCounts } from "@/lib/types";
 import type { DesignTokens } from "@/design-system/types";
-import type { ContentItem, ContentState, RunMode, AgentAction, Learning } from "@/lib/contentTypes";
+import type { ContentItem, ContentState, RunMode, AgentAction, Learning, Cadence } from "@/lib/contentTypes";
 import type { Suggestion } from "@/lib/planner";
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
@@ -140,6 +140,10 @@ export function getToday(tenant: string) {
   return jsonRequest<{ due: ContentItem[]; suggested: Suggestion[] }>(`/api/content/${encodeURIComponent(tenant)}/today`);
 }
 
+export function getCadence(tenant: string) {
+  return jsonRequest<Cadence>(`/api/content/${encodeURIComponent(tenant)}/cadence`);
+}
+
 export function getItem(tenant: string, id: string) {
   return jsonRequest<ContentItem>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}`);
 }
@@ -170,4 +174,16 @@ export function postLearningDecision(tenant: string, id: string, decision: "acce
 
 export function postRun(tenant: string, action: AgentAction, mode: RunMode, targetId?: string) {
   return jsonRequest<{ mode: RunMode; instruction?: string; runId?: string; exitCode?: number }>(`/api/content/${encodeURIComponent(tenant)}/run`, { method: "POST", body: JSON.stringify({ action, mode, targetId }) });
+}
+
+export function listWork(tenant: string, type: string): Promise<WorkArtifactSummary[]> {
+  return jsonRequest<WorkArtifactSummary[]>(`/api/work/${encodeURIComponent(tenant)}/${encodeURIComponent(type)}`);
+}
+
+export function getWorkSummary(tenant: string): Promise<WorkCounts> {
+  return jsonRequest<WorkCounts>(`/api/work/${encodeURIComponent(tenant)}`);
+}
+
+export function getWork(tenant: string, type: string, slug: string): Promise<WorkArtifact> {
+  return jsonRequest<WorkArtifact>(`/api/work/${encodeURIComponent(tenant)}/${encodeURIComponent(type)}/${encodeURIComponent(slug)}`);
 }

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { test, expect } from "vitest";
 import {
   isValidTenantId,
@@ -9,6 +10,8 @@ import {
   resolveContentItemPath,
   resolveContentAssetPath,
   resolveContentFile,
+  resolveWorkTypeDir,
+  resolveWorkFile,
 } from "./setupPaths.js";
 
 test("isValidTenantId accepts kebab ids and rejects unsafe ones", () => {
@@ -57,4 +60,32 @@ test("resolveContentFile only allows known top-level files", () => {
   expect(resolveContentFile("example-personal", "learnings.jsonl")?.startsWith(contentRoot)).toBeTruthy();
   expect(resolveContentFile("example-personal", "../secret")).toBeNull();
   expect(resolveContentFile("example-personal", "nested/x.json")).toBeNull();
+});
+
+test("resolveWorkTypeDir confines under the work root for a known capability", () => {
+  const dir = resolveWorkTypeDir("example-agency", "campaigns");
+  expect(dir).not.toBeNull();
+  expect(dir?.endsWith(path.join("work", "example-agency", "campaigns"))).toBeTruthy();
+});
+
+test("resolveWorkFile resolves a slug to a markdown file under the work dir", () => {
+  const file = resolveWorkFile("example-agency", "campaigns", "q3-push");
+  expect(file).not.toBeNull();
+  expect(file?.endsWith("q3-push.md")).toBeTruthy();
+});
+
+test("resolveWorkTypeDir rejects an invalid tenant id", () => {
+  expect(resolveWorkTypeDir("../x", "campaigns")).toBeNull();
+});
+
+test("resolveWorkTypeDir rejects an unknown capability type", () => {
+  expect(resolveWorkTypeDir("example-agency", "bogus")).toBeNull();
+});
+
+test("resolveWorkFile rejects a traversal slug", () => {
+  expect(resolveWorkFile("example-agency", "campaigns", "..")).toBeNull();
+});
+
+test("resolveWorkFile rejects a slug containing a path separator", () => {
+  expect(resolveWorkFile("example-agency", "campaigns", "a/b")).toBeNull();
 });

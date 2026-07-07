@@ -1,12 +1,11 @@
 {
   "name": "@marketing-ops/dashboard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,web \"pnpm:dev:server\" \"pnpm:dev:web\"",
     "dev:server": "tsx server/index.ts",
-    "dev:server:watch": "tsx watch server/index.ts",
     "dev:web": "vite",
     "build": "tsc -b && vite build",
     "start": "NODE_ENV=production tsx server/index.ts",

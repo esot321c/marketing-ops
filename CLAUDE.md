@@ -35,6 +35,14 @@ CHANGELOG, releases, PRs, tags, commit messages):
 - Scan the diff for real names, real domains, and private content. If anything looks personal, STOP
   and ask the human before publishing.
 
+## Surfacing capabilities
+
+When the user asks for a campaign, an SEO or content strategy, keyword research, competitor research, or an analytics review, save the result to `data/work/<tenant>/<type>/<slug>.md` with `title`, `created`, and `status` frontmatter so the dashboard shows it. The five types are `campaigns`, `strategy`, `keywords`, `research`, and `analytics`. When a workspace is ready, proactively tell the user these capabilities exist and how to ask, for example by pointing them at the Ask panel in the dashboard.
+
+### Next steps after Init
+
+After Init reaches `readyToPost`, the prep work is not finished. The agent's next job is to run competitor research, research keywords, draft a first content and SEO strategy, and plan a first campaign, in that order. Analytics comes later, once posts are live. Do not wait for the user to ask. When Init completes, and whenever the user asks what is next, tell them which prep pieces are still outstanding and offer to do them. Ask any questions you need, then save each result to `data/work/<tenant>/<type>/` so the dashboard shows it. Treat the four prep pieces (research, keywords, strategy, campaigns) as the agent's outstanding work, not the user's. The user finished Init; surfacing and doing the prep is on the agent.
+
 ## Deleting or moving files
 
 - Never delete or move a file without confirming with the human first. Private content may need to
