@@ -15,6 +15,9 @@ test("shows empty-state prompt when there is no work yet", async () => {
   render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
 
   expect(await screen.findByText(/Plan a campaign for Example Agency/)).toBeTruthy();
+  expect(
+    await screen.findByText(/Turn a goal into a coordinated push with a brief and a schedule\./),
+  ).toBeTruthy();
 });
 
 test("renders a card for each work item in the list", async () => {

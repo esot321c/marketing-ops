@@ -26,4 +26,11 @@ describe("capabilities registry", () => {
   it("isCapabilityId returns false for invalid id", () => {
     expect(isCapabilityId("today")).toBe(false);
   });
+
+  it("every capability has a non-empty description", () => {
+    for (const capability of CAPABILITIES) {
+      expect(typeof capability.description).toBe("string");
+      expect(capability.description.length).toBeGreaterThan(0);
+    }
+  });
 });

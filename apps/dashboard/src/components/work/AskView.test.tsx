@@ -13,4 +13,5 @@ test("renders all five capability labels and campaigns prompt", () => {
   expect(screen.getByText("Analytics")).toBeTruthy();
 
   expect(screen.getByText("Plan a campaign for Example Agency")).toBeTruthy();
+  expect(screen.getByText(/Find the search terms and topics worth targeting/)).toBeTruthy();
 });

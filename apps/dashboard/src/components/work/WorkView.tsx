@@ -43,6 +43,9 @@ export function WorkView({ tenant, tenantName, capabilityId }: WorkViewProps) {
   if (items.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <p className="ws-slate" style={{ fontSize: 12 }}>
+          {capability.description}
+        </p>
         <p className="ws-slate" style={{ fontSize: 13 }}>
           No {capability.label} yet. Ask your agent:
         </p>
@@ -53,7 +56,12 @@ export function WorkView({ tenant, tenantName, capabilityId }: WorkViewProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div className="ws-label">{capability.label}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div className="ws-label">{capability.label}</div>
+        <p className="ws-slate" style={{ fontSize: 12 }}>
+          {capability.description}
+        </p>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((item) => (
           <button
