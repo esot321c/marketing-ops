@@ -4,6 +4,10 @@ import { render, screen } from "@testing-library/react";
 import { WorkView } from "./WorkView.js";
 import { listWork } from "@/lib/api";
 
+class MockEventSource { addEventListener() {} close() {} }
+// @ts-expect-error test stub
+globalThis.EventSource = MockEventSource;
+
 vi.mock("@/lib/api", () => ({ listWork: vi.fn(), getWork: vi.fn() }));
 
 test("shows empty-state prompt when there is no work yet", async () => {

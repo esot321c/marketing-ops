@@ -2,9 +2,12 @@ import { Link } from "react-router-dom";
 import type { StageId } from "@/lib/types";
 import type { SetupStep } from "@/lib/setupNav";
 import type { ReactNode } from "react";
+import { CAPABILITIES } from "@/lib/capabilities";
 
 export type Section =
-  | "today" | "board" | "composer" | "cadence" | "learnings" | StageId;
+  | "today" | "board" | "composer" | "cadence" | "learnings"
+  | "campaigns" | "strategy" | "keywords" | "research" | "analytics" | "ask"
+  | StageId;
 
 interface WorkspaceSidebarProps {
   mode: "guided" | "ready";
@@ -95,6 +98,11 @@ export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, co
           {TUNE.map((c) => (
             <Item key={c.id} label={c.label} active={section === c.id} href={hrefFor(c.id)} />
           ))}
+          <div className="ws-nav-sec">Work</div>
+          {CAPABILITIES.map((cap) => (
+            <Item key={cap.id} label={cap.label} active={section === cap.id} href={hrefFor(cap.id as Section)} />
+          ))}
+          <Item label="Ask" active={section === "ask"} href={hrefFor("ask")} />
         </>
       ) : null}
 

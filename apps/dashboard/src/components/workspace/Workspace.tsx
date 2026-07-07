@@ -16,11 +16,15 @@ import { Composer } from "@/components/content/Composer";
 import { CadencePanel } from "@/components/content/CadencePanel";
 import { LearningsPanel } from "@/components/content/LearningsPanel";
 import { Button } from "@/components/ui/button";
+import { CAPABILITIES } from "@/lib/capabilities";
+import { WorkView } from "@/components/work/WorkView";
+import { AskView } from "@/components/work/AskView";
 
 const CONTENT_SECTIONS = new Set<Section>(["today", "board", "composer", "cadence", "learnings"]);
 const STAGE_SECTIONS = new Set<string>(STAGES.map((s) => s.id));
+const WORK_SECTIONS = new Set<string>(CAPABILITIES.map((c) => c.id));
 function isSection(v: string): v is Section {
-  return CONTENT_SECTIONS.has(v as Section) || STAGE_SECTIONS.has(v);
+  return CONTENT_SECTIONS.has(v as Section) || STAGE_SECTIONS.has(v) || WORK_SECTIONS.has(v) || v === "ask";
 }
 
 export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; tenantName: string; themeMode: ThemeMode }) {
@@ -63,9 +67,12 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
     : "today";
 
   // Resolve the active section from the path. Redirect to the default when it is
-  // absent, unknown, or a content section while setup is still guided (content
-  // stays locked until ready). This is what makes a deep URL survive a refresh.
-  const contentLocked = guided && routeSection !== undefined && CONTENT_SECTIONS.has(routeSection as Section);
+  // absent, unknown, or a content/work/ask section while setup is still guided
+  // (these all stay locked until ready). This is what makes a deep URL survive a refresh.
+  const contentLocked =
+    guided &&
+    routeSection !== undefined &&
+    (CONTENT_SECTIONS.has(routeSection as Section) || WORK_SECTIONS.has(routeSection) || routeSection === "ask");
   if (routeSection === undefined || !isSection(routeSection) || contentLocked) {
     return <Navigate to={`/${defaultSection}${search}`} replace />;
   }
@@ -104,6 +111,12 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
       if (active === "composer") return itemId ? <Composer tenant={tenant} tenantName={tenantName} itemId={itemId} /> : <p className="ws-slate" style={{ fontSize: 13 }}>Open a piece from Today or the board.</p>;
       if (active === "cadence") return <CadencePanel tenant={tenant} />;
       if (active === "learnings") return <LearningsPanel tenant={tenant} />;
+    }
+    if (WORK_SECTIONS.has(active)) {
+      return <WorkView tenant={tenant} tenantName={tenantName} capabilityId={active} />;
+    }
+    if (active === "ask") {
+      return <AskView tenantName={tenantName} />;
     }
     // otherwise `active` is a setup stage id
     const stageId = active as StageId;

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CopyPrompt } from "@/components/content/CopyPrompt";
 import { listWork, getWork } from "@/lib/api";
 import { capabilityById, promptFor } from "@/lib/capabilities";
+import { useLiveData } from "@/hooks/useLiveData";
 import type { WorkArtifact, WorkArtifactSummary } from "@/lib/types";
 
 interface WorkViewProps {
@@ -14,17 +15,18 @@ interface WorkViewProps {
 
 export function WorkView({ tenant, tenantName, capabilityId }: WorkViewProps) {
   const capability = capabilityById(capabilityId);
-  const [items, setItems] = useState<WorkArtifactSummary[] | null>(null);
+  const capId = capability?.id ?? "";
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkArtifact | null>(null);
 
+  const fetchList = useCallback(() => listWork(tenant, capId), [tenant, capId]);
+  const shouldRefetch = useCallback((p: string) => p.includes(`/work/${tenant}/`), [tenant]);
+  const { data: items } = useLiveData<WorkArtifactSummary[]>(fetchList, shouldRefetch);
+
   useEffect(() => {
-    if (!capability) return;
-    setItems(null);
     setSelectedSlug(null);
     setDetail(null);
-    void listWork(tenant, capability.id).then(setItems);
-  }, [tenant, capability]);
+  }, [tenant, capId]);
 
   useEffect(() => {
     if (!capability || !selectedSlug) {
