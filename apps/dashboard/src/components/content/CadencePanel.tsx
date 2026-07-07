@@ -109,7 +109,7 @@ export function CadencePanel({ tenant, tenantName }: { tenant: string; tenantNam
 
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
           <span className="ws-serif ws-ink" style={{ fontSize: 40, fontWeight: 800, lineHeight: 1 }}>
-            {today ? today.suggested.length : "—"}
+            {today ? today.suggested.length : "-"}
           </span>
           <span className="ws-slate" style={{ fontSize: 13 }}>pieces suggested this week</span>
         </div>
