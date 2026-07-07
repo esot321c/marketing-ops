@@ -3,17 +3,18 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CopyPrompt } from "@/components/content/CopyPrompt";
 import { listWork, getWork } from "@/lib/api";
-import { capabilityById, promptFor } from "@/lib/capabilities";
+import { capabilityById, promptFor, priorPrepMissing } from "@/lib/capabilities";
 import { useLiveData } from "@/hooks/useLiveData";
-import type { WorkArtifact, WorkArtifactSummary } from "@/lib/types";
+import type { WorkArtifact, WorkArtifactSummary, WorkCounts } from "@/lib/types";
 
 interface WorkViewProps {
   tenant: string;
   tenantName: string;
   capabilityId: string;
+  counts?: WorkCounts;
 }
 
-export function WorkView({ tenant, tenantName, capabilityId }: WorkViewProps) {
+export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: WorkViewProps) {
   const capability = capabilityById(capabilityId);
   const capId = capability?.id ?? "";
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -38,11 +39,26 @@ export function WorkView({ tenant, tenantName, capabilityId }: WorkViewProps) {
 
   if (!capability) return null;
 
+  const missing = priorPrepMissing(capabilityId, counts);
+  const banner =
+    missing.length > 0 ? (
+      <div className="ws-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+        <p style={{ fontSize: 13, margin: 0 }}>
+          Recommend running {missing.map((c) => c.label).join(", ")} before {capability.label}.
+        </p>
+        <p className="ws-slate" style={{ fontSize: 12, margin: 0 }}>
+          Prep steps ground the rest, so start there first.
+        </p>
+        <CopyPrompt prompt={promptFor(missing[0]!, tenantName)} />
+      </div>
+    ) : null;
+
   if (items === null) return null;
 
   if (items.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {banner}
         <p className="ws-slate" style={{ fontSize: 12 }}>
           {capability.description}
         </p>
@@ -56,6 +72,7 @@ export function WorkView({ tenant, tenantName, capabilityId }: WorkViewProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {banner}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div className="ws-label">{capability.label}</div>
         <p className="ws-slate" style={{ fontSize: 12 }}>

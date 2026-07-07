@@ -130,7 +130,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
       if (active === "learnings") return <LearningsPanel tenant={tenant} />;
     }
     if (WORK_SECTIONS.has(active)) {
-      return <WorkView tenant={tenant} tenantName={tenantName} capabilityId={active} />;
+      return <WorkView tenant={tenant} tenantName={tenantName} capabilityId={active} counts={counts ?? {}} />;
     }
     if (active === "ask") {
       return <AskView tenantName={tenantName} />;

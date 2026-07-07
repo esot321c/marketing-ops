@@ -12,7 +12,14 @@ vi.mock("@/lib/api", () => ({ listWork: vi.fn(), getWork: vi.fn() }));
 
 test("shows empty-state prompt when there is no work yet", async () => {
   vi.mocked(listWork).mockResolvedValue([]);
-  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
+  render(
+    <WorkView
+      tenant="example-agency"
+      tenantName="Example Agency"
+      capabilityId="campaigns"
+      counts={{ research: 1, keywords: 1, strategy: 1 }}
+    />,
+  );
 
   expect(await screen.findByText(/Plan a campaign for Example Agency/)).toBeTruthy();
   expect(
@@ -27,4 +34,34 @@ test("renders a card for each work item in the list", async () => {
   render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
 
   expect(await screen.findByText("Q3 push")).toBeTruthy();
+});
+
+test("shows a prerequisite banner recommending missing prep steps", async () => {
+  vi.mocked(listWork).mockResolvedValue([]);
+  render(
+    <WorkView
+      tenant="example-agency"
+      tenantName="Example Agency"
+      capabilityId="campaigns"
+      counts={{}}
+    />,
+  );
+
+  expect(await screen.findByText(/before Campaigns\./)).toBeTruthy();
+  expect(await screen.findByText(/Run competitor research for Example Agency/)).toBeTruthy();
+});
+
+test("does not show a prerequisite banner for research", async () => {
+  vi.mocked(listWork).mockResolvedValue([]);
+  render(
+    <WorkView
+      tenant="example-agency"
+      tenantName="Example Agency"
+      capabilityId="research"
+      counts={{}}
+    />,
+  );
+
+  await screen.findByText(/Run competitor research for Example Agency/);
+  expect(screen.queryByText(/before Research\./)).toBeNull();
 });
