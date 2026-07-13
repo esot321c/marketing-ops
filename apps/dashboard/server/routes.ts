@@ -24,7 +24,7 @@ import { todayView } from "../src/lib/planner.js";
 import { parseLearnings, pendingFirst, decide } from "../src/lib/learnings.js";
 import { detectPosture, availableModes } from "../src/lib/runModes.js";
 import { runHeadless, type RunRecord } from "./headlessRunner.js";
-import { contentInstruction } from "../src/lib/contentHandoff.js";
+import { contentInstruction, latestPendingRefineNote } from "../src/lib/contentHandoff.js";
 import type { StageId } from "../src/lib/types.js";
 import type { Cadence, AgentAction, RunMode } from "../src/lib/contentTypes.js";
 
@@ -318,7 +318,18 @@ export function registerRoutes(app: Hono) {
     if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
     const body = await c.req.json<{ action?: AgentAction; targetId?: string; mode?: RunMode }>().catch(() => null);
     if (!body?.action || !body.mode) return c.text("Missing action or mode", 400);
-    const instruction = contentInstruction(body.action, await tenantName(tenant), body.targetId);
+    let refineNote: string | undefined;
+    if (body.action === "refine" && body.targetId) {
+      const itemFile = resolveContentItemPath(tenant, body.targetId);
+      const raw = itemFile ? await readFile(itemFile, "utf8").catch(() => null) : null;
+      if (raw) {
+        try {
+          const item = JSON.parse(raw) as { refineLog?: { instruction: string; summary: string }[] };
+          refineNote = latestPendingRefineNote(item.refineLog ?? []);
+        } catch { /* malformed item: treat as no queued note */ }
+      }
+    }
+    const instruction = contentInstruction(body.action, await tenantName(tenant), body.targetId, refineNote);
     if (body.mode === "chat") return c.json({ mode: "chat", instruction });
     if (!availableModes(detectPosture(process.env)).includes(body.mode)) return c.text("Mode unavailable", 409);
     const result = await runHeadless(
