@@ -19,6 +19,7 @@ Content pieces carry their own caption and cited sources, the pipeline board is 
 
 - **The pipeline board is draggable.** Cards move between lifecycle columns by dragging, which changes the piece's state. Dropping a card into Scheduled dates it today, and clicking a card still opens it in the Composer.
 - **Refine is one action.** The Composer's refine panel replaces the separate "Queue refine note" and "Run" steps with a single Run that saves the note to the piece and hands the agent an instruction naming the queued note, or stating that none is queued.
+- **Work views are expandable.** A capability's saved documents now list as expandable rows that can be open several at a time, with the newest opened by default. Opening a document no longer replaces the whole list.
 
 ## [0.4.0] - 2026-07-07
 

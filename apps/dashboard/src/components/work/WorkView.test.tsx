@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { test, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { WorkView } from "./WorkView.js";
-import { listWork } from "@/lib/api";
+import { listWork, getWork } from "@/lib/api";
 
 class MockEventSource { addEventListener() {} close() {} }
 // @ts-expect-error test stub
@@ -31,9 +31,55 @@ test("renders a card for each work item in the list", async () => {
   vi.mocked(listWork).mockResolvedValue([
     { slug: "q3", title: "Q3 push", created: "2026-03-01", status: "active" },
   ]);
+  vi.mocked(getWork).mockResolvedValue({
+    slug: "q3",
+    title: "Q3 push",
+    created: "2026-03-01",
+    status: "active",
+    body: "Q3 body.",
+  });
   render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
 
   expect(await screen.findByText("Q3 push")).toBeTruthy();
+});
+
+test("auto-opens the newest artifact and shows its body without a click", async () => {
+  vi.mocked(listWork).mockResolvedValue([
+    { slug: "new", title: "Newest", created: "2026-05-01", status: "ready" },
+    { slug: "old", title: "Oldest", created: "2026-01-01", status: "ready" },
+  ]);
+  vi.mocked(getWork).mockImplementation(async (_t, _c, slug) => ({
+    slug,
+    title: slug,
+    created: "2026-05-01",
+    status: "ready",
+    body: `${slug} body.`,
+  }));
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="research" />);
+
+  // Newest body is visible immediately; older one stays collapsed.
+  expect(await screen.findByText("new body.")).toBeTruthy();
+  expect(screen.queryByText("old body.")).toBeNull();
+});
+
+test("collapses the open artifact when its header is clicked", async () => {
+  vi.mocked(listWork).mockResolvedValue([
+    { slug: "only", title: "Only doc", created: "2026-05-01", status: "ready" },
+  ]);
+  vi.mocked(getWork).mockResolvedValue({
+    slug: "only",
+    title: "Only doc",
+    created: "2026-05-01",
+    status: "ready",
+    body: "Only body.",
+  });
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="research" />);
+
+  const body = await screen.findByText("Only body.");
+  expect(body).toBeTruthy();
+
+  fireEvent.click(screen.getByText("Only doc"));
+  expect(screen.queryByText("Only body.")).toBeNull();
 });
 
 test("shows a prerequisite banner recommending missing prep steps", async () => {
