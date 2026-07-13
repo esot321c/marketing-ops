@@ -11,7 +11,7 @@ const LABEL: Record<RunMode, string> = {
   "headless-apikey": "Headless, API key",
 };
 
-export function RunModeSelect({ tenant, action, targetId }: { tenant: string; action: AgentAction; targetId?: string }) {
+export function RunModeSelect({ tenant, action, targetId, beforeRun }: { tenant: string; action: AgentAction; targetId?: string; beforeRun?: () => Promise<void> }) {
   const [modes, setModes] = useState<RunMode[]>(["chat"]);
   const [posture, setPosture] = useState<Posture>({ hasOauthToken: false, hasApiKey: false, localBackend: false });
   const [mode, setMode] = useState<RunMode>("chat");
@@ -31,6 +31,7 @@ export function RunModeSelect({ tenant, action, targetId }: { tenant: string; ac
   async function go() {
     setRunning(true);
     try {
+      if (beforeRun) await beforeRun();
       const res = await postRun(tenant, action, mode, targetId);
       setChatPrompt(res.mode === "chat" ? res.instruction ?? null : null);
     } finally {

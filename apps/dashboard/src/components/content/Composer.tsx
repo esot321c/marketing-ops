@@ -6,6 +6,7 @@ import { TextPost } from "@/design-system/components/TextPost";
 import { RunModeSelect } from "./RunModeSelect";
 import { CopyPrompt } from "./CopyPrompt";
 import { CaptionCard } from "./CaptionCard";
+import { CitationsCard } from "./CitationsCard";
 import { SlideText } from "./SlideText";
 import type { ContentItem, Asset } from "@/lib/contentTypes";
 import type { DesignTokens } from "@/design-system/types";
@@ -54,7 +55,7 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
   if (!item) return <p className="ws-slate" style={{ fontSize: 13 }}>Loading…</p>;
   const brand = tenantName;
 
-  async function refine() {
+  async function queueNote() {
     if (!instruction.trim()) return;
     await postRefine(tenant, itemId, instruction);
     setInstruction("");
@@ -73,6 +74,7 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
       </header>
 
       <CaptionCard caption={item.caption} />
+      <CitationsCard citations={item.citations} />
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 22, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -90,10 +92,10 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
               onChange={(e) => setInstruction(e.target.value)}
               placeholder="e.g. tighten slide 3, lead slide 4 with the number"
             />
-            <div>
-              <button type="button" className="ws-btn ws-btn-sm" onClick={refine}>Queue refine note</button>
-            </div>
-            <RunModeSelect tenant={tenant} action="refine" targetId={itemId} />
+            <p className="ws-slate" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
+              Run saves your note to this piece and hands the agent an instruction that includes it.
+            </p>
+            <RunModeSelect tenant={tenant} action="refine" targetId={itemId} beforeRun={queueNote} />
           </div>
 
           <div className="ws-card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
