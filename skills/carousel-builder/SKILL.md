@@ -18,5 +18,8 @@ Turn one angle into 4-6 slides for a `carousel` ContentItem.
   per post, not one per slide. Ground it in the tenant's real material, keep it short, end with the
   tenant URL, and follow `skills/marketing-setup/writing-rules.md`. If the carousel cites a study or a
   statistic, name that source in the caption.
+- When the carousel cites a study, report, or survey, add each source to the item's `citations` array
+  as `{ label, url }` (label is the source name, url is the link) and name it in the caption. The
+  `citations` are the structured record of the study-citation rule.
 - Apply `skills/marketing-setup/writing-rules.md`: plain punctuation, no em dashes, no rule-of-three
   cadence, no negative parallelism, defensible claims only.
