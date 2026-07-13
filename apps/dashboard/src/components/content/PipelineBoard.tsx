@@ -76,6 +76,7 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                       e.dataTransfer.setData("application/x-item-state", state);
                       e.dataTransfer.effectAllowed = "move";
                     }}
+                    onDragEnd={() => setDragOver(null)}
                     onClick={() => onOpen(i.id)}
                     style={{ padding: 10, marginBottom: 8, borderRadius: 10, cursor: "grab" }}
                   >
