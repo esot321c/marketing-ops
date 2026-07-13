@@ -5,6 +5,8 @@ import { CarouselDeck } from "@/design-system/components/CarouselDeck";
 import { TextPost } from "@/design-system/components/TextPost";
 import { RunModeSelect } from "./RunModeSelect";
 import { CopyPrompt } from "./CopyPrompt";
+import { CaptionCard } from "./CaptionCard";
+import { SlideText } from "./SlideText";
 import type { ContentItem, Asset } from "@/lib/contentTypes";
 import type { DesignTokens } from "@/design-system/types";
 
@@ -19,8 +21,11 @@ function AssetView({ asset, tokens, brand }: { asset: Asset; tokens: DesignToken
     }
     if (asset.content.type === "slides" && tokens) {
       return (
-        <div className="ws-stage" style={{ display: "flex", justifyContent: "center" }}>
-          <CarouselDeck tokens={tokens} slides={asset.content.slides} brand={brand} url={brand} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="ws-stage" style={{ display: "flex", justifyContent: "center" }}>
+            <CarouselDeck tokens={tokens} slides={asset.content.slides} brand={brand} url={brand} />
+          </div>
+          <SlideText slides={asset.content.slides} />
         </div>
       );
     }
@@ -66,6 +71,8 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
           <span className="ws-pill">{item.angle}</span>
         </div>
       </header>
+
+      <CaptionCard caption={item.caption} />
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 22, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
