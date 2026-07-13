@@ -33,6 +33,8 @@ export interface Asset {
 export interface Schedule { date?: string; status: "unscheduled" | "scheduled" | "posted"; }
 export interface RefineEntry { at: string; instruction: string; summary: string; }
 
+export interface Citation { label: string; url: string; }
+
 export interface ContentItem {
   id: string;
   tenantId: string;
@@ -43,6 +45,7 @@ export interface ContentItem {
   angle: string;
   pillar: string;
   caption?: string; // the LinkedIn post body that accompanies the media; one per post
+  citations?: Citation[];
   assets: Asset[];
   schedule: Schedule;
   source: string[];
@@ -148,6 +151,15 @@ export function validateContentItem(value: unknown): value is ContentItem {
 
   if (!(v.caption === undefined || typeof v.caption === "string")) {
     return false;
+  }
+
+  if (v.citations !== undefined) {
+    if (!Array.isArray(v.citations)) return false;
+    for (const cite of v.citations) {
+      if (!(typeof cite === "object" && cite !== null)) return false;
+      const c = cite as Record<string, unknown>;
+      if (!(typeof c.label === "string" && typeof c.url === "string")) return false;
+    }
   }
 
   const schedule = v.schedule as Record<string, unknown>;

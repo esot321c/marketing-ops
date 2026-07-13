@@ -46,3 +46,15 @@ test("validateContentItem accepts an optional string caption", () => {
 test("validateContentItem rejects a non-string caption", () => {
   expect(validateContentItem({ ...item, caption: 42 })).toBe(false);
 });
+
+test("validateContentItem accepts a well-formed citations array", () => {
+  expect(validateContentItem({ ...item, citations: [{ label: "A study", url: "https://example.com/s" }] })).toBe(true);
+  expect(validateContentItem({ ...item, citations: [] })).toBe(true);
+  expect(validateContentItem({ ...item, citations: undefined })).toBe(true);
+});
+
+test("validateContentItem rejects a malformed citations array", () => {
+  expect(validateContentItem({ ...item, citations: "nope" })).toBe(false);
+  expect(validateContentItem({ ...item, citations: [{ label: "x" }] })).toBe(false);
+  expect(validateContentItem({ ...item, citations: [{ label: 1, url: "u" }] })).toBe(false);
+});
