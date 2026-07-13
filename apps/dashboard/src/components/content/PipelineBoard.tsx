@@ -1,7 +1,9 @@
-import { useCallback } from "react";
-import { getBoard } from "@/lib/api";
+import { useCallback, useState } from "react";
+import type { DragEvent } from "react";
+import { getBoard, postState } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import { BOARD_STATES } from "@/lib/contentLibrary";
+import { dropArgs } from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 
 const LABELS: Record<ContentState, string> = {
@@ -16,13 +18,27 @@ const LABELS: Record<ContentState, string> = {
 
 export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id: string) => void }) {
   const fetch = useCallback(() => getBoard(tenant), [tenant]);
-  const { data } = useLiveData<Record<ContentState, ContentItem[]>>(fetch, (p) => p.includes(`/content/${tenant}/`));
+  const { data, reload } = useLiveData<Record<ContentState, ContentItem[]>>(fetch, (p) => p.includes(`/content/${tenant}/`));
+  const [dragOver, setDragOver] = useState<ContentState | null>(null);
+
+  async function handleDrop(target: ContentState, e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOver(null);
+    const id = e.dataTransfer.getData("application/x-item-id");
+    const source = e.dataTransfer.getData("application/x-item-state") as ContentState;
+    if (!id || !source) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const args = dropArgs(source, target, today);
+    if (!args) return;
+    await postState(tenant, id, args.to, args.date);
+    reload();
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <header>
         <h1 className="ws-h1">Pipeline board</h1>
-        <p className="ws-sub">Every piece, grouped by where it is in the lifecycle.</p>
+        <p className="ws-sub">Every piece, grouped by where it is in the lifecycle. Drag a card to move it.</p>
       </header>
 
       {!data ? (
@@ -36,9 +52,14 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                 <span className="ws-slate ws-mono" style={{ fontSize: 11 }}>{data[state].length}</span>
               </div>
               <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(state); }}
+                onDragLeave={() => setDragOver((s) => (s === state ? null : s))}
+                onDrop={(e) => void handleDrop(state, e)}
                 style={{
-                  background: "color-mix(in srgb, var(--ws-band) 40%, transparent)",
-                  border: "1px solid var(--ws-line)",
+                  background: dragOver === state
+                    ? "color-mix(in srgb, var(--ws-accent) 14%, transparent)"
+                    : "color-mix(in srgb, var(--ws-band) 40%, transparent)",
+                  border: dragOver === state ? "1px solid var(--ws-accent)" : "1px solid var(--ws-line)",
                   borderRadius: 12,
                   padding: 8,
                   minHeight: 92,
@@ -49,8 +70,14 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                     key={i.id}
                     type="button"
                     className="ws-card-btn"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("application/x-item-id", i.id);
+                      e.dataTransfer.setData("application/x-item-state", state);
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
                     onClick={() => onOpen(i.id)}
-                    style={{ padding: 10, marginBottom: 8, borderRadius: 10 }}
+                    style={{ padding: 10, marginBottom: 8, borderRadius: 10, cursor: "grab" }}
                   >
                     <div className="ws-ink" style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>{i.title}</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
