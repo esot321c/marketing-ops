@@ -37,3 +37,12 @@ test("validateContentItem rejects malformed input", () => {
     assets: [{ id: "a1", kind: "copy", route: "local-harness", status: "ready" }],
   })).toBe(true);
 });
+
+test("validateContentItem accepts an optional string caption", () => {
+  expect(validateContentItem({ ...item, caption: "The post body" })).toBe(true);
+  expect(validateContentItem({ ...item, caption: undefined })).toBe(true);
+});
+
+test("validateContentItem rejects a non-string caption", () => {
+  expect(validateContentItem({ ...item, caption: 42 })).toBe(false);
+});

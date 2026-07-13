@@ -42,6 +42,7 @@ export interface ContentItem {
   title: string;
   angle: string;
   pillar: string;
+  caption?: string; // the LinkedIn post body that accompanies the media; one per post
   assets: Asset[];
   schedule: Schedule;
   source: string[];
@@ -142,6 +143,10 @@ export function validateContentItem(value: unknown): value is ContentItem {
     Array.isArray(v.source) &&
     Array.isArray(v.refineLog)
   )) {
+    return false;
+  }
+
+  if (!(v.caption === undefined || typeof v.caption === "string")) {
     return false;
   }
 
