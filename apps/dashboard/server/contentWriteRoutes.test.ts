@@ -72,3 +72,21 @@ test("POST state validates the target state and updates the item", async () => {
   });
   expect(bad.status).toBe(400);
 });
+
+test("POST state preserves an existing caption", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "cap1.json"), JSON.stringify({
+    id: "cap1", tenantId: "write-test-agency", channel: "linkedin", format: "carousel",
+    state: "in_review", title: "T", angle: "a", pillar: "p", caption: "Keep me",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const res = await app.request("/api/content/write-test-agency/cap1/state", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to: "approved" }),
+  });
+  expect(res.status).toBe(200);
+  const saved = JSON.parse(await readFile(path.join(itemsDir, "cap1.json"), "utf8"));
+  expect(saved.caption).toBe("Keep me");
+  expect(saved.state).toBe("approved");
+});
