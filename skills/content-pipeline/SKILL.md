@@ -25,7 +25,9 @@ You produce and refine content for a tenant's content motion. The dashboard writ
    set to the recommended generator (`claude-design` for on-brand carousels).
 3. Set `state: "in_review"`. For a carousel, add a `carousel-visual` external asset whose package is
    a Claude Design prompt built from `design-system/tokens.json`.
-4. Person voice matches the tenant type: a personal brand speaks as "I", an agency or company as "we", a product addressing its audience as "you/your".
+4. For a carousel, image post, or video, also write `caption`: the post's LinkedIn caption, one per
+   post. Ground it, follow the writing rules, and cite any study or statistic it references.
+5. Person voice matches the tenant type: a personal brand speaks as "I", an agency or company as "we", a product addressing its audience as "you/your".
 
 ## Link tagging (UTM)
 When a piece links back to a property the tenant owns (a blog post, a landing page), suggest
