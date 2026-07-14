@@ -17,6 +17,8 @@ export function CarouselVisualPanelView({ asset, slides, files, tokens, urlFor, 
 }) {
   const pkg = asset.package as ImagePackage;
   const prompts = pkg.slidePrompts ?? [];
+  const promptless = pkg.slidePrompts === undefined;
+  const thumb = promptless ? 84 : 120;
   const complete = allSlideImages(files, slides.length);
   return (
     <div className="ws-card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -41,7 +43,7 @@ export function CarouselVisualPanelView({ asset, slides, files, tokens, urlFor, 
         const prompt = prompts.find((p) => p.slide === n);
         const img = slideImageFor(files, n);
         return (
-          <div key={n} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 120px", gap: 10, alignItems: "start" }}>
+          <div key={n} style={{ display: "grid", gridTemplateColumns: `minmax(0, 1fr) ${thumb}px`, gap: 10, alignItems: promptless ? "center" : "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span className="ws-label">{String(n).padStart(2, "0")}  {s.heading}</span>
               {prompt
@@ -52,7 +54,7 @@ export function CarouselVisualPanelView({ asset, slides, files, tokens, urlFor, 
             </div>
             {img ? (
               <img src={urlFor(img)} alt={`Slide ${n} image`}
-                style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 6 }} />
+                style={{ width: thumb, height: thumb, objectFit: "cover", borderRadius: 6 }} />
             ) : (
               <label className="ws-btn ws-btn-sm" style={{ textAlign: "center", cursor: "pointer" }}>
                 Add image

@@ -12,7 +12,7 @@ import { CarouselVisualPanel } from "./CarouselVisualPanel";
 import type { ContentItem, Asset, CarouselSlideContent } from "@/lib/contentTypes";
 import type { DesignTokens } from "@/design-system/types";
 
-function AssetView({ asset, tokens, brand }: { asset: Asset; tokens: DesignTokens | null; brand: string }) {
+function AssetView({ asset, tokens, brand, slideTextOnly }: { asset: Asset; tokens: DesignTokens | null; brand: string; slideTextOnly?: boolean }) {
   if (asset.route === "local-harness" && asset.content) {
     if (asset.content.type === "copy" && tokens) {
       return (
@@ -22,6 +22,9 @@ function AssetView({ asset, tokens, brand }: { asset: Asset; tokens: DesignToken
       );
     }
     if (asset.content.type === "slides" && tokens) {
+      // With a rendered image deck on the page, the text mock is redundant;
+      // keep only the copyable slide script.
+      if (slideTextOnly) return <SlideText slides={asset.content.slides} />;
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="ws-stage" style={{ display: "flex", justifyContent: "center" }}>
@@ -61,6 +64,7 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
   const isVisualPanel = (a: Asset) =>
     a.kind === "carousel-visual" && a.package?.kind === "image" && slides.length > 0;
   const orderedAssets = [...item.assets].sort((a, b) => Number(isVisualPanel(b)) - Number(isVisualPanel(a)));
+  const hasVisualPanel = item.assets.some(isVisualPanel);
 
   async function queueNote() {
     if (!instruction.trim()) return;
@@ -87,7 +91,7 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {orderedAssets.map((a) => isVisualPanel(a)
             ? <CarouselVisualPanel key={a.id} tenant={tenant} itemId={itemId} asset={a} slides={slides} tokens={tokens} />
-            : <AssetView key={a.id} asset={a} tokens={tokens} brand={brand} />)}
+            : <AssetView key={a.id} asset={a} tokens={tokens} brand={brand} slideTextOnly={hasVisualPanel} />)}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
