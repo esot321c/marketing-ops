@@ -39,7 +39,13 @@ typographic slides, because generated images garble text and drift off-brand.
 3. Serve the folder locally and screenshot each `.slide` element at 1080x1080 with Playwright,
    saving as `slide-NN.png` (1-based, zero-padded) into `data/content/<tenant>/assets/<item>/`,
    which is where the dashboard's slide panel reads images from.
-4. Set the `carousel-visual` asset's `resultRef` to that assets directory, put a short render note
+4. Export the deck as a multi-page PDF, because LinkedIn uploads carousels as PDF documents. Add
+   `@page { size: 1080px 1080px; margin: 0; }` and a print rule giving each `.slide` a
+   `page-break-after`, then print the page to `<item>.pdf` in the same assets directory (Playwright
+   `page.pdf` with `printBackground: true` and `preferCSSPageSize: true`, or headless Chrome's
+   `--print-to-pdf`). Text stays vector, one slide per page. Verify the page count matches the
+   slide count.
+5. Set the `carousel-visual` asset's `resultRef` to that assets directory, put a short render note
    in `package.prompt` (source HTML path and what each slide shows), and set `status: "ready"`.
 
 Generative images are for background art only (`treatment: "text-on-art"`), when a piece wants an
