@@ -1,0 +1,70 @@
+name: Release
+
+# When a version bump lands on main, tag it and cut a GitHub Release using the
+# matching CHANGELOG section. The job is idempotent: it does nothing if the tag
+# for the current package.json version already exists, so ordinary merges that
+# do not change the version are no-ops.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read package version
+        id: version
+        run: echo "value=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether the tag already exists
+        id: tag
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.value }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract the CHANGELOG section for this version
+        if: steps.tag.outputs.exists == 'false'
+        id: notes
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          awk -v ver="$version" '
+            BEGIN { target = "## [" ver "]" }
+            index($0, target) == 1 { flag = 1; next }
+            flag && index($0, "## [") == 1 { flag = 0 }
+            flag { print }
+          ' CHANGELOG.md > release-notes.md
+          # Trim leading and trailing blank lines.
+          sed -i -e '/./,$!d' release-notes.md
+          if [ -s release-notes.md ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::error::No CHANGELOG section found for version $version; add a '## [$version]' heading before releasing."
+          fi
+
+      - name: Create the tag and GitHub Release
+        if: steps.tag.outputs.exists == 'false' && steps.notes.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          gh release create "v$version" \
+            --title "v$version" \
+            --notes-file release-notes.md \
+            --target "${{ github.sha }}"

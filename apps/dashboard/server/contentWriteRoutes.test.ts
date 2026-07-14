@@ -72,3 +72,56 @@ test("POST state validates the target state and updates the item", async () => {
   });
   expect(bad.status).toBe(400);
 });
+
+test("POST state preserves an existing caption", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "cap1.json"), JSON.stringify({
+    id: "cap1", tenantId: "write-test-agency", channel: "linkedin", format: "carousel",
+    state: "in_review", title: "T", angle: "a", pillar: "p", caption: "Keep me",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const res = await app.request("/api/content/write-test-agency/cap1/state", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to: "approved" }),
+  });
+  expect(res.status).toBe(200);
+  const saved = JSON.parse(await readFile(path.join(itemsDir, "cap1.json"), "utf8"));
+  expect(saved.caption).toBe("Keep me");
+  expect(saved.state).toBe("approved");
+});
+
+test("POST run for refine includes the queued note in the instruction", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "run1.json"), JSON.stringify({
+    id: "run1", tenantId: "write-test-agency", channel: "linkedin", format: "carousel",
+    state: "in_review", title: "T", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [],
+    refineLog: [{ at: "2026-07-13T00:00:00Z", instruction: "make it punchier", summary: "pending" }],
+  }));
+  const res = await app.request("/api/content/write-test-agency/run", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "refine", mode: "chat", targetId: "run1" }),
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.instruction).toContain('Queued refine note: "make it punchier"');
+});
+
+test("POST run for refine states when no note is queued", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "run2.json"), JSON.stringify({
+    id: "run2", tenantId: "write-test-agency", channel: "linkedin", format: "carousel",
+    state: "in_review", title: "T", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const res = await app.request("/api/content/write-test-agency/run", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "refine", mode: "chat", targetId: "run2" }),
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.instruction).toContain("No refine note queued");
+});

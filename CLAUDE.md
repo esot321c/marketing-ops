@@ -43,6 +43,28 @@ When the user asks for a campaign, an SEO or content strategy, keyword research,
 
 After Init reaches `readyToPost`, the prep work is not finished. The agent's next job is to run competitor research, research keywords, draft a first content and SEO strategy, and plan a first campaign, in that order. Analytics comes later, once posts are live. Do not wait for the user to ask. When Init completes, and whenever the user asks what is next, tell them which prep pieces are still outstanding and offer to do them. Ask any questions you need, then save each result to `data/work/<tenant>/<type>/` so the dashboard shows it. Treat the four prep pieces (research, keywords, strategy, campaigns) as the agent's outstanding work, not the user's. The user finished Init; surfacing and doing the prep is on the agent.
 
+## Generating content: ground it in real material, never fabricate
+
+When you generate posts, carousels, campaigns, strategy, example copy, or any content for a tenant,
+ground every claim in real material. For a personal authority brand this is the whole game, because a
+single fabricated claim, once posted, destroys the credibility the brand is built on.
+
+- Never invent a first-person claim, experience, story, or insight and attribute it to the person. If
+  they did not say it or do it, do not write it in their voice.
+- Do not assert what a person uses, does, or has seen unless it is verified in their real sources.
+  When the point is general advice rather than their verified practice, use educational or decision
+  framing ("how to decide when to X"), not false first-person ("when I do X").
+- Draw content only from the tenant's real sources (their site and blog, their voice and
+  canonical-facts guide, their shipped work, their approved material under `data/`) or from a real,
+  verifiable external source you have actually checked and can cite.
+- Model formats and angles on real, high-performing examples from the competitor and reference
+  research, not on invented patterns. Label any unconfirmed angle as a suggestion; never present an
+  invention as the person's experience or as something people say.
+- If you cannot ground a claim, cut it or ask. Do not fill the gap with a plausible fabrication.
+- Cite studies and statistics. Any claim drawn from a study, report, or survey must name its source so
+  a reader can verify it, and for a carousel the citation belongs in the caption. See
+  `skills/marketing-setup/writing-rules.md`.
+
 ## Deleting or moving files
 
 - Never delete or move a file without confirming with the human first. Private content may need to

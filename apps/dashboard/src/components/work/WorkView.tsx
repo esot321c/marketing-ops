@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CopyPrompt } from "@/components/content/CopyPrompt";
@@ -17,25 +17,55 @@ interface WorkViewProps {
 export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: WorkViewProps) {
   const capability = capabilityById(capabilityId);
   const capId = capability?.id ?? "";
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
-  const [detail, setDetail] = useState<WorkArtifact | null>(null);
+  const [openSlugs, setOpenSlugs] = useState<Set<string>>(new Set());
+  const [details, setDetails] = useState<Record<string, WorkArtifact>>({});
+  const requested = useRef<Set<string>>(new Set());
+  const autoOpened = useRef(false);
 
   const fetchList = useCallback(() => listWork(tenant, capId), [tenant, capId]);
   const shouldRefetch = useCallback((p: string) => p.includes(`/work/${tenant}/`), [tenant]);
   const { data: items } = useLiveData<WorkArtifactSummary[]>(fetchList, shouldRefetch);
 
+  const loadDetail = useCallback(
+    (slug: string) => {
+      if (!capability || requested.current.has(slug)) return;
+      requested.current.add(slug);
+      void getWork(tenant, capability.id, slug).then((d) =>
+        setDetails((cur) => ({ ...cur, [slug]: d })),
+      );
+    },
+    [tenant, capability],
+  );
+
+  // Reset when switching tenant or capability.
   useEffect(() => {
-    setSelectedSlug(null);
-    setDetail(null);
+    setOpenSlugs(new Set());
+    setDetails({});
+    requested.current = new Set();
+    autoOpened.current = false;
   }, [tenant, capId]);
 
+  // Open the newest artifact by default, so a single doc shows without a click.
   useEffect(() => {
-    if (!capability || !selectedSlug) {
-      setDetail(null);
-      return;
-    }
-    void getWork(tenant, capability.id, selectedSlug).then(setDetail);
-  }, [tenant, capability, selectedSlug]);
+    if (autoOpened.current || !items || items.length === 0) return;
+    autoOpened.current = true;
+    const newest = items[0]!.slug;
+    setOpenSlugs(new Set([newest]));
+    loadDetail(newest);
+  }, [items, loadDetail]);
+
+  const toggle = useCallback(
+    (slug: string) => {
+      setOpenSlugs((cur) => {
+        const next = new Set(cur);
+        if (next.has(slug)) next.delete(slug);
+        else next.add(slug);
+        return next;
+      });
+      loadDetail(slug);
+    },
+    [loadDetail],
+  );
 
   if (!capability) return null;
 
@@ -80,29 +110,43 @@ export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: Work
         </p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {items.map((item) => (
-          <button
-            key={item.slug}
-            type="button"
-            className="ws-card"
-            style={{ padding: 12, textAlign: "left", cursor: "pointer" }}
-            onClick={() => setSelectedSlug(item.slug)}
-          >
-            <div>{item.title}</div>
-            <div className="ws-slate" style={{ fontSize: 12, display: "flex", gap: 8 }}>
-              {item.created ? <span>{item.created}</span> : null}
-              {item.status ? <span>{item.status}</span> : null}
+        {items.map((item) => {
+          const open = openSlugs.has(item.slug);
+          const detail = details[item.slug];
+          return (
+            <div key={item.slug} className="ws-card" style={{ overflow: "hidden" }}>
+              <button
+                type="button"
+                className="ws-work-row"
+                aria-expanded={open}
+                onClick={() => toggle(item.slug)}
+              >
+                <span className="ws-work-chevron" data-open={open} aria-hidden="true">
+                  ▸
+                </span>
+                <span style={{ flex: 1 }}>
+                  <span style={{ display: "block" }}>{item.title}</span>
+                  <span className="ws-slate" style={{ fontSize: 12, display: "flex", gap: 8 }}>
+                    {item.created ? <span>{item.created}</span> : null}
+                    {item.status ? <span>{item.status}</span> : null}
+                  </span>
+                </span>
+              </button>
+              {open ? (
+                <div style={{ padding: "0 16px 16px" }}>
+                  {detail ? (
+                    <div className="ws-prose">
+                      <Markdown remarkPlugins={[remarkGfm]}>{detail.body}</Markdown>
+                    </div>
+                  ) : (
+                    <span className="ws-slate" style={{ fontSize: 12 }}>-</span>
+                  )}
+                </div>
+              ) : null}
             </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
-      {detail ? (
-        <div className="ws-card" style={{ padding: 16 }}>
-          <div className="ws-prose">
-            <Markdown remarkPlugins={[remarkGfm]}>{detail.body}</Markdown>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

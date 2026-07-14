@@ -30,6 +30,9 @@ Each tenant's `voice.md` fixes the person and uses only that one. Pick the perso
 - Defensible claims only. No superlatives or quantified specifics that imply data we do not have.
   Weaken when unsure, so "the most / always / every" becomes "can / often / a lot of / in our
   experience".
+- Cite any study, report, survey, or statistic. Name the specific source, meaning the organization or
+  publication and what it measured, so a reader can verify it. Keep separate figures as separate
+  claims. For a carousel or other media post, the citation goes in the caption.
 - Complete sentences, never fragments. Fragments read as AI marketing copy.
 - Never claim the brand uses a product, tool, or service unless it has been confirmed.
 - Always the Oxford comma.
@@ -51,3 +54,5 @@ Each tenant's `voice.md` fixes the person and uses only that one. Pick the perso
 3. Any fragment, triad list, or "not X, but Y"? Remove it.
 4. Is there a concrete tool, metric, or decision early in the piece?
 5. Does it read as a finding or a lesson, not an announcement?
+6. Does every study, survey, or statistic name its source? If a number has no named source, cut it or
+   add the source.
