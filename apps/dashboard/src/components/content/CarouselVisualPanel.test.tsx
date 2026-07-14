@@ -37,3 +37,12 @@ test("says when a slide has no prompt yet", () => {
     tokens={tokens} urlFor={urlFor} onUpload={noop} />);
   expect(screen.getAllByText("No prompt yet.").length).toBe(2);
 });
+
+test("a prompt-less package (locally rendered deck) shows images without prompt placeholders", () => {
+  const rendered: Asset = { ...asset, package: { kind: "image", prompt: "Rendered from slides.html.", treatment: "infographic" } };
+  render(<CarouselVisualPanelView asset={rendered} slides={slides} files={["slide-01.png", "slide-02.png"]}
+    tokens={tokens} urlFor={urlFor} onUpload={noop} />);
+  expect(screen.queryByText("No prompt yet.")).toBeNull();
+  expect(screen.getByAltText("Hook")).toBeTruthy();
+  expect(screen.getByText("Render notes")).toBeTruthy();
+});

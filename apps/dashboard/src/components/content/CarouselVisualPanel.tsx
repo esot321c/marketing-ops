@@ -46,7 +46,9 @@ export function CarouselVisualPanelView({ asset, slides, files, tokens, urlFor, 
               <span className="ws-label">{String(n).padStart(2, "0")}  {s.heading}</span>
               {prompt
                 ? <CopyText text={prompt.prompt} />
-                : <span className="ws-slate" style={{ fontSize: 12 }}>No prompt yet.</span>}
+                : pkg.slidePrompts !== undefined
+                  ? <span className="ws-slate" style={{ fontSize: 12 }}>No prompt yet.</span>
+                  : null}
             </div>
             {img ? (
               <img src={urlFor(img)} alt={`Slide ${n} image`}
@@ -73,7 +75,7 @@ export function CarouselVisualPanelView({ asset, slides, files, tokens, urlFor, 
         </div>
       ))}
 
-      <CopyText text={pkg.prompt} label="Deck style prompt" />
+      <CopyText text={pkg.prompt} label={pkg.slidePrompts !== undefined ? "Deck style prompt" : "Render notes"} />
     </div>
   );
 }

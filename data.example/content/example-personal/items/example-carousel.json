@@ -19,7 +19,7 @@
           { "heading": "Why most product demos win the room and lose the rollout", "body": "Notes from shipping software to real teams.", "visual": "bold title card" },
           { "heading": "A demo runs on clean, hand-picked inputs.", "body": "Production runs on whatever users actually send.", "dark": true, "visual": "split panel contrasting tidy and messy input" },
           { "heading": "Make the happy path boring and the edge cases loud.", "body": "Before you polish the pitch, handle the mess.", "bullets": ["Malformed input", "Slow networks", "Half-finished sessions"], "visual": "checklist over a faint grid" },
-          { "heading": "Earn the rollout, not just the applause.", "body": "example.dev", "visual": "closing card with the site URL" }
+          { "heading": "Earn the rollout, and the applause follows.", "body": "example.dev", "visual": "closing card with the site URL" }
         ]
       }
     },
@@ -27,18 +27,12 @@
       "id": "visual",
       "kind": "carousel-visual",
       "route": "external-tool",
-      "tool": "nano-banana",
+      "tool": "claude-design",
       "status": "needed",
       "package": {
         "kind": "image",
-        "prompt": "Square 1080x1080 slides in the tenant design system: paper background, single accent color, display serif headings, humanist sans body (design-system/tokens.json). Flat editorial infographic style, generous margins, no photography.",
-        "treatment": "infographic",
-        "slidePrompts": [
-          { "slide": 1, "prompt": "Square 1080x1080 infographic title card, paper background, single accent color, display serif heading. Heading: Why most product demos win the room and lose the rollout. Subline: Notes from shipping software to real teams. Flat editorial style, generous margins." },
-          { "slide": 2, "prompt": "Square 1080x1080 infographic, dark inverse variant: ink background, paper text, single accent color. Split panel contrasting tidy hand-picked demo inputs on the left with messy real user inputs on the right. Heading: A demo runs on clean, hand-picked inputs. Subline: Production runs on whatever users actually send." },
-          { "slide": 3, "prompt": "Square 1080x1080 infographic checklist over a faint grid, paper background, single accent color. Heading: Make the happy path boring and the edge cases loud. Lead-in: Before you polish the pitch, handle the mess. Checklist items: Malformed input; Slow networks; Half-finished sessions." },
-          { "slide": 4, "prompt": "Square 1080x1080 infographic closing card, paper background, single accent color, display serif heading. Heading: Earn the rollout, not just the applause. Footer URL: example.dev." }
-        ]
+        "prompt": "Slides render locally from HTML in the tenant design system (paper background, single accent color, display serif headings, humanist sans body, from design-system/tokens.json). Source: data/content/example-personal/renders/example-carousel/slides.html, screenshotted at 1080x1080 per slide into data/content/example-personal/assets/example-carousel/. Slide 2 is the dark inverse variant.",
+        "treatment": "infographic"
       }
     }
   ],

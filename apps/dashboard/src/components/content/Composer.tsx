@@ -59,7 +59,7 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
   const slides: CarouselSlideContent[] =
     slidesAsset?.content?.type === "slides" ? slidesAsset.content.slides : [];
   const isVisualPanel = (a: Asset) =>
-    a.kind === "carousel-visual" && a.package?.kind === "image" && a.package.slidePrompts !== undefined;
+    a.kind === "carousel-visual" && a.package?.kind === "image" && slides.length > 0;
   const orderedAssets = [...item.assets].sort((a, b) => Number(isVisualPanel(b)) - Number(isVisualPanel(a)));
 
   async function queueNote() {
