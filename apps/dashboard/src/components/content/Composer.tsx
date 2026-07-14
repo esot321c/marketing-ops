@@ -8,7 +8,8 @@ import { CopyPrompt } from "./CopyPrompt";
 import { CaptionCard } from "./CaptionCard";
 import { CitationsCard } from "./CitationsCard";
 import { SlideText } from "./SlideText";
-import type { ContentItem, Asset } from "@/lib/contentTypes";
+import { CarouselVisualPanel } from "./CarouselVisualPanel";
+import type { ContentItem, Asset, CarouselSlideContent } from "@/lib/contentTypes";
 import type { DesignTokens } from "@/design-system/types";
 
 function AssetView({ asset, tokens, brand }: { asset: Asset; tokens: DesignTokens | null; brand: string }) {
@@ -54,6 +55,12 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
   const { data: tokens } = useLiveData<DesignTokens | null>(fetchTokens, (p) => p.includes(`/${tenant}/design-system/`));
   if (!item) return <p className="ws-slate" style={{ fontSize: 13 }}>Loading…</p>;
   const brand = tenantName;
+  const slidesAsset = item.assets.find((a) => a.content?.type === "slides");
+  const slides: CarouselSlideContent[] =
+    slidesAsset?.content?.type === "slides" ? slidesAsset.content.slides : [];
+  const isVisualPanel = (a: Asset) =>
+    a.kind === "carousel-visual" && a.package?.kind === "image" && a.package.slidePrompts !== undefined;
+  const orderedAssets = [...item.assets].sort((a, b) => Number(isVisualPanel(b)) - Number(isVisualPanel(a)));
 
   async function queueNote() {
     if (!instruction.trim()) return;
@@ -78,7 +85,9 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 22, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {item.assets.map((a) => <AssetView key={a.id} asset={a} tokens={tokens} brand={brand} />)}
+          {orderedAssets.map((a) => isVisualPanel(a)
+            ? <CarouselVisualPanel key={a.id} tenant={tenant} itemId={itemId} asset={a} slides={slides} tokens={tokens} />
+            : <AssetView key={a.id} asset={a} tokens={tokens} brand={brand} />)}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
