@@ -18,6 +18,7 @@ import {
   resolveContentFile,
   resolveContentRequestPath,
   resolveContentAssetPath,
+  resolveContentAssetDir,
 } from "../src/lib/setupPaths.js";
 import { parseItems, boardIndex } from "../src/lib/contentLibrary.js";
 import { todayView } from "../src/lib/planner.js";
@@ -30,6 +31,14 @@ import type { Cadence, AgentAction, RunMode } from "../src/lib/contentTypes.js";
 
 const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "application/pdf"]);
 const MAX_BYTES = 10 * 1024 * 1024;
+const ASSET_CONTENT_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".pdf": "application/pdf",
+};
 const CONTENT_STATES = new Set(["idea", "drafting", "in_review", "approved", "scheduled", "posted", "measured"]);
 
 async function readItems(tenant: string) {
@@ -337,6 +346,27 @@ export function registerRoutes(app: Hono) {
       { spawn: spawn as never, appendRun, env: process.env, now: () => new Date().toISOString() }
     );
     return c.json({ mode: body.mode, runId: result.runId, exitCode: result.exitCode });
+  });
+
+  app.get("/api/content/:tenant/:id/assets", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    const dir = resolveContentAssetDir(tenant, c.req.param("id"));
+    if (!dir) return c.text("Bad path", 400);
+    const names = await readdir(dir).catch(() => [] as string[]);
+    return c.json(names.sort());
+  });
+
+  app.get("/api/content/:tenant/:id/assets/:file", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    const file = resolveContentAssetPath(tenant, c.req.param("id"), c.req.param("file"));
+    if (!file) return c.text("Bad path", 400);
+    const type = ASSET_CONTENT_TYPES[path.extname(file).toLowerCase()];
+    if (!type) return c.text("Unsupported type", 400);
+    const buf = await readFile(file).catch(() => null);
+    if (buf === null) return c.text("Not found", 404);
+    return c.body(new Uint8Array(buf).buffer, 200, { "content-type": type });
   });
 
   app.post("/api/content/:tenant/:id/assets/:assetId/upload", async (c) => {
