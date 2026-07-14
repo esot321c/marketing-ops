@@ -187,3 +187,31 @@ export function getWorkSummary(tenant: string): Promise<WorkCounts> {
 export function getWork(tenant: string, type: string, slug: string): Promise<WorkArtifact> {
   return jsonRequest<WorkArtifact>(`/api/work/${encodeURIComponent(tenant)}/${encodeURIComponent(type)}/${encodeURIComponent(slug)}`);
 }
+
+export function listItemAssets(tenant: string, id: string): Promise<string[]> {
+  return jsonRequest<string[]>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/assets`);
+}
+
+export function itemAssetUrl(tenant: string, id: string, file: string): string {
+  return `/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/assets/${encodeURIComponent(file)}`;
+}
+
+export async function uploadItemAsset(
+  tenant: string,
+  id: string,
+  assetId: string,
+  file: File,
+  name: string
+): Promise<{ ok: boolean; file: string }> {
+  const form = new FormData();
+  // Re-wrap under the enforced name so any generator download lands as slide-NN.<ext>.
+  form.append("file", new File([file], name, { type: file.type }));
+  const res = await fetch(
+    `/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/assets/${encodeURIComponent(assetId)}/upload`,
+    { method: "POST", body: form }
+  );
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<{ ok: boolean; file: string }>;
+}
