@@ -15,7 +15,7 @@ export function slideImageFor(files: string[], slide: number): string | undefine
 }
 
 export function allSlideImages(files: string[], count: number): boolean {
-  if (count === 0) return false;
+  if (count <= 0) return false;
   for (let i = 1; i <= count; i++) {
     if (slideImageFor(files, i) === undefined) return false;
   }

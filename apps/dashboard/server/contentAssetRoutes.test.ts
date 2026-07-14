@@ -8,7 +8,7 @@ import { contentRoot } from "../src/lib/setupPaths.js";
 const app = new Hono();
 registerRoutes(app);
 const dir = path.join(contentRoot, "asset-test-agency");
-// tenantExists() reads data/tenants/*.json (via listTenants) — register the test tenant.
+// tenantExists() reads data/tenants/*.json (via listTenants); register the test tenant.
 const tenantsRoot = path.resolve(process.cwd(), "..", "..", "data", "tenants");
 const tenantFile = path.join(tenantsRoot, "asset-test-agency.json");
 

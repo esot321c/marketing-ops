@@ -19,4 +19,5 @@ test("allSlideImages requires every slide up to count", () => {
   expect(allSlideImages(["slide-01.png", "slide-02.jpg"], 2)).toBe(true);
   expect(allSlideImages(["slide-01.png"], 2)).toBe(false);
   expect(allSlideImages([], 0)).toBe(false);
+  expect(allSlideImages(["slide-01.png"], -1)).toBe(false);
 });
