@@ -14,6 +14,7 @@ Content pieces carry their own caption and cited sources, the pipeline board is 
 - **Captions and readable slide text.** A content item now carries a `caption`, the post body that accompanies a carousel or other media, shown and copyable in the Composer. Carousel slide copy also renders as plain, copyable text beside the on-brand slide preview, so the words are not trapped inside an image.
 - **Sources on a piece.** A content item can carry a `citations` list of named links. The Composer shows a Sources panel under the caption where each source is a link with a copy button, so a cited study is easy to verify and to drop into the first comment. The content skills now record a cited study in `citations` and name it in the caption.
 - **Study-citation rule.** The shared writing rules require naming the source for any study, report, survey, or statistic, with a matching self-check, so a claim drawn from research is verifiable rather than vague.
+- **App favicon.** The dashboard sets a favicon, so the browser tab shows the app icon.
 
 ### Changed
 
