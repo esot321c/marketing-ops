@@ -22,6 +22,7 @@ export function CarouselDeck({ tokens, slides, brand, url }: CarouselDeckProps) 
         total={slides.length}
         title={current.heading}
         body={current.body}
+        bullets={current.bullets}
         dark={current.dark ?? false}
         brand={brand}
         url={url}

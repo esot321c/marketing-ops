@@ -11,3 +11,11 @@ test("CarouselDeck renders the first slide heading", () => {
     slides={[{ heading: "Hello world" }, { heading: "Second" }]} />);
   expect(screen.getByText("Hello world")).toBeTruthy();
 });
+
+test("CarouselDeck renders slide bullets as list items", () => {
+  render(<CarouselDeck tokens={tokens} brand="example.dev" url="example.dev"
+    slides={[{ heading: "Hook", body: "Lead-in.", bullets: ["Alpha item", "Beta item"] }]} />);
+  expect(screen.getByRole("list")).toBeTruthy();
+  expect(screen.getAllByRole("listitem").length).toBe(2);
+  expect(screen.getByText("Alpha item")).toBeTruthy();
+});

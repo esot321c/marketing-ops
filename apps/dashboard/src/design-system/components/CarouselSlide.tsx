@@ -7,6 +7,7 @@ export interface CarouselSlideProps {
   total: number;
   title: string;
   body?: string;
+  bullets?: string[];
   dark?: boolean;
   brand: string;
   url: string;
@@ -18,6 +19,7 @@ export function CarouselSlide({
   total,
   title,
   body,
+  bullets,
   dark = false,
   brand,
   url,
@@ -87,6 +89,15 @@ export function CarouselSlide({
     margin: `${t.space.sm} 0 0`,
   };
 
+  const listStyle: CSSProperties = {
+    fontFamily: t.font.body,
+    fontSize: "0.9rem",
+    lineHeight: 1.55,
+    color: fgSoft,
+    margin: `${t.space.sm} 0 0`,
+    paddingLeft: "1.1em",
+  };
+
   const urlStyle: CSSProperties = {
     fontFamily: t.font.mono,
     fontSize: "0.62rem",
@@ -110,6 +121,13 @@ export function CarouselSlide({
         <hr style={accentRule} />
         <h2 style={titleStyle}>{title}</h2>
         {body !== undefined && body !== "" && <p style={bodyStyle}>{body}</p>}
+        {bullets !== undefined && bullets.length > 0 && (
+          <ul style={listStyle}>
+            {bullets.map((b, i) => (
+              <li key={i} style={{ marginTop: i === 0 ? 0 : "0.3em" }}>{b}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <footer>
         <span style={urlStyle}>{url}</span>

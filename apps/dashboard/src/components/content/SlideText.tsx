@@ -5,7 +5,10 @@ export function slidesToText(slides: CarouselSlideContent[]): string {
   return slides
     .map((s, i) => {
       const n = String(i + 1).padStart(2, "0");
-      return s.body ? `${n}  ${s.heading}\n${s.body}` : `${n}  ${s.heading}`;
+      const lines = [`${n}  ${s.heading}`];
+      if (s.body) lines.push(s.body);
+      if (s.bullets) lines.push(...s.bullets.map((b) => `- ${b}`));
+      return lines.join("\n");
     })
     .join("\n\n");
 }
