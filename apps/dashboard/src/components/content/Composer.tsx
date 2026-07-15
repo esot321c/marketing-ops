@@ -9,7 +9,7 @@ import { CaptionCard } from "./CaptionCard";
 import { CitationsCard } from "./CitationsCard";
 import { SlideText } from "./SlideText";
 import { CarouselVisualPanel } from "./CarouselVisualPanel";
-import type { ContentItem, Asset, CarouselSlideContent } from "@/lib/contentTypes";
+import type { ContentItem, ContentState, Asset, CarouselSlideContent } from "@/lib/contentTypes";
 import type { DesignTokens } from "@/design-system/types";
 
 function AssetView({ asset, tokens, brand, slideTextOnly }: { asset: Asset; tokens: DesignTokens | null; brand: string; slideTextOnly?: boolean }) {
@@ -52,6 +52,7 @@ function AssetView({ asset, tokens, brand, slideTextOnly }: { asset: Asset; toke
 
 export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenantName: string; itemId: string }) {
   const [instruction, setInstruction] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
   const fetchItem = useCallback(() => getItem(tenant, itemId), [tenant, itemId]);
   const { data: item, reload } = useLiveData<ContentItem>(fetchItem, (p) => p.includes(`/content/${tenant}/items/`));
   const fetchTokens = useCallback(() => getDesignTokens(tenant), [tenant]);
@@ -71,6 +72,20 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
     await postRefine(tenant, itemId, instruction);
     setInstruction("");
     reload();
+  }
+
+  function today(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  async function setState(to: ContentState, date?: string) {
+    setActionError(null);
+    try {
+      await postState(tenant, itemId, to, date);
+      reload();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   return (
@@ -114,16 +129,21 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
           <div className="ws-card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
             <span className="ws-label">Actions</span>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <button type="button" className="ws-btn ws-btn-primary ws-btn-sm" onClick={() => postState(tenant, itemId, "approved").then(reload)}>
+              <button type="button" className="ws-btn ws-btn-primary ws-btn-sm" onClick={() => { void setState("approved"); }}>
                 Approve
               </button>
-              <button type="button" className="ws-btn ws-btn-sm" onClick={() => postState(tenant, itemId, "scheduled", new Date().toISOString().slice(0, 10)).then(reload)}>
+              <button type="button" className="ws-btn ws-btn-sm" onClick={() => { void setState("scheduled", today()); }}>
                 Schedule today
               </button>
-              <button type="button" className="ws-btn ws-btn-sm" onClick={() => postState(tenant, itemId, "posted").then(reload)}>
+              <button type="button" className="ws-btn ws-btn-sm" onClick={() => { void setState("posted", today()); }}>
                 Mark posted
               </button>
             </div>
+            {actionError ? (
+              <p style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5, color: "#e5484d" }}>
+                Action failed: {actionError}
+              </p>
+            ) : null}
             <p className="ws-slate" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
               {tenantName}: refine reads best in Chat; one-shot drafting suits Headless.
             </p>

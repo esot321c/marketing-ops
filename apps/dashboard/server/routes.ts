@@ -287,7 +287,9 @@ export function registerRoutes(app: Hono) {
     }
     item.state = body.to;
     if (body.to === "scheduled") item.schedule = { status: "scheduled", date: body.date };
-    if (body.to === "posted") item.schedule = { ...item.schedule, status: "posted" };
+    if (body.to === "posted") {
+      item.schedule = { ...item.schedule, status: "posted", ...(body.date ? { date: body.date } : {}) };
+    }
     await writeFile(file, JSON.stringify(item, null, 2), "utf8");
     return c.json({ ok: true, item });
   });
