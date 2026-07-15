@@ -19,7 +19,7 @@ export function LearningsPanel({ tenant }: { tenant: string }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 780 }}>
       <header>
         <h1 className="ws-h1">Learnings</h1>
         <p className="ws-sub">What the motion learned, feeding back into the brand. Identity edits wait for you.</p>
