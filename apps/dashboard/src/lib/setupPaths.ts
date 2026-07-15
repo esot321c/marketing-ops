@@ -112,14 +112,19 @@ export function resolveContentRequestPath(tenantId: string, id: string): string 
   return resolved.startsWith(reqDir + path.sep) ? resolved : null;
 }
 
+export function resolveContentAssetDir(tenantId: string, itemId: string): string | null {
+  const dir = resolveContentDir(tenantId);
+  if (!dir || !isSafeSegment(itemId)) return null;
+  return path.join(dir, "assets", itemId);
+}
+
 export function resolveContentAssetPath(
   tenantId: string,
   itemId: string,
   assetFile: string
 ): string | null {
-  const dir = resolveContentDir(tenantId);
-  if (!dir || !isSafeSegment(itemId) || !isSafeSegment(assetFile)) return null;
-  const assetsDir = path.join(dir, "assets", itemId);
+  const assetsDir = resolveContentAssetDir(tenantId, itemId);
+  if (!assetsDir || !isSafeSegment(assetFile)) return null;
   const resolved = path.resolve(assetsDir, assetFile);
   return resolved.startsWith(assetsDir + path.sep) ? resolved : null;
 }

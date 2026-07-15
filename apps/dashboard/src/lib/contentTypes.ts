@@ -9,13 +9,27 @@ export type ExternalTool = "claude-design" | "nano-banana" | "chatgpt" | "video-
 export type AssetStatus = "needed" | "generating" | "ready";
 
 export interface CopyContent { kicker?: string; headline: string; body: string; closer?: string; }
-export interface CarouselSlideContent { heading: string; body?: string; dark?: boolean; }
+export interface CarouselSlideContent {
+  heading: string;
+  body?: string;       // short prose lead-in, one or two sentences
+  bullets?: string[];  // point-form list rendered after body
+  visual?: string;     // one-line art direction for the slide image
+  dark?: boolean;
+}
 export type AssetContent =
   | { type: "copy"; copy: CopyContent }
   | { type: "slides"; slides: CarouselSlideContent[] }
   | { type: "markdown"; markdown: string };
 
-export interface ImagePackage { kind: "image"; prompt: string; notes?: string; comparableRef?: string; }
+export interface SlidePrompt { slide: number; prompt: string; } // slide is 1-based
+export interface ImagePackage {
+  kind: "image";
+  prompt: string; // deck-level shared style summary
+  notes?: string;
+  comparableRef?: string;
+  treatment?: "infographic" | "text-on-art";
+  slidePrompts?: SlidePrompt[];
+}
 export interface VideoPackage { kind: "video"; storyboard: string[]; shotPrompts: { heading: string; prompt: string }[]; }
 export type GenerationPackage = ImagePackage | VideoPackage;
 
@@ -120,6 +134,33 @@ const ASSET_STATUSES: ReadonlySet<string> = new Set<AssetStatus>([
   "needed", "generating", "ready",
 ]);
 
+const TREATMENTS: ReadonlySet<string> = new Set(["infographic", "text-on-art"]);
+
+function isValidSlide(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const s = value as Record<string, unknown>;
+  if (typeof s.heading !== "string") return false;
+  if (!(s.body === undefined || typeof s.body === "string")) return false;
+  if (!(s.visual === undefined || typeof s.visual === "string")) return false;
+  if (!(s.dark === undefined || typeof s.dark === "boolean")) return false;
+  if (s.bullets !== undefined) {
+    if (!Array.isArray(s.bullets)) return false;
+    if (!s.bullets.every((b) => typeof b === "string" && b.length > 0)) return false;
+  }
+  return true;
+}
+
+function isValidSlidePrompts(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!Array.isArray(value)) return false;
+  return value.every((entry) => {
+    if (typeof entry !== "object" || entry === null) return false;
+    const p = entry as Record<string, unknown>;
+    return typeof p.slide === "number" && Number.isInteger(p.slide) && p.slide >= 1 &&
+      typeof p.prompt === "string";
+  });
+}
+
 export function gateFor(target: LearningTarget): LearningGate {
   return target === "cadence" ? "auto" : "gated";
 }
@@ -178,6 +219,22 @@ export function validateContentItem(value: unknown): value is ContentItem {
       typeof a.status === "string" && ASSET_STATUSES.has(a.status)
     )) {
       return false;
+    }
+    if (a.content !== undefined) {
+      if (typeof a.content !== "object" || a.content === null) return false;
+      const content = a.content as Record<string, unknown>;
+      if (content.type === "slides") {
+        if (!Array.isArray(content.slides)) return false;
+        if (!(content.slides as unknown[]).every(isValidSlide)) return false;
+      }
+    }
+    if (a.package !== undefined && typeof a.package === "object" && a.package !== null) {
+      const pkg = a.package as Record<string, unknown>;
+      if (pkg.kind === "image") {
+        if (!(pkg.treatment === undefined ||
+          (typeof pkg.treatment === "string" && TREATMENTS.has(pkg.treatment)))) return false;
+        if (!isValidSlidePrompts(pkg.slidePrompts)) return false;
+      }
     }
   }
 

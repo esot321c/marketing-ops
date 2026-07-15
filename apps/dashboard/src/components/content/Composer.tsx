@@ -8,10 +8,11 @@ import { CopyPrompt } from "./CopyPrompt";
 import { CaptionCard } from "./CaptionCard";
 import { CitationsCard } from "./CitationsCard";
 import { SlideText } from "./SlideText";
-import type { ContentItem, Asset } from "@/lib/contentTypes";
+import { CarouselVisualPanel } from "./CarouselVisualPanel";
+import type { ContentItem, ContentState, Asset, CarouselSlideContent } from "@/lib/contentTypes";
 import type { DesignTokens } from "@/design-system/types";
 
-function AssetView({ asset, tokens, brand }: { asset: Asset; tokens: DesignTokens | null; brand: string }) {
+function AssetView({ asset, tokens, brand, slideTextOnly }: { asset: Asset; tokens: DesignTokens | null; brand: string; slideTextOnly?: boolean }) {
   if (asset.route === "local-harness" && asset.content) {
     if (asset.content.type === "copy" && tokens) {
       return (
@@ -21,6 +22,9 @@ function AssetView({ asset, tokens, brand }: { asset: Asset; tokens: DesignToken
       );
     }
     if (asset.content.type === "slides" && tokens) {
+      // With a rendered image deck on the page, the text mock is redundant;
+      // keep only the copyable slide script.
+      if (slideTextOnly) return <SlideText slides={asset.content.slides} />;
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="ws-stage" style={{ display: "flex", justifyContent: "center" }}>
@@ -48,18 +52,40 @@ function AssetView({ asset, tokens, brand }: { asset: Asset; tokens: DesignToken
 
 export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenantName: string; itemId: string }) {
   const [instruction, setInstruction] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
   const fetchItem = useCallback(() => getItem(tenant, itemId), [tenant, itemId]);
   const { data: item, reload } = useLiveData<ContentItem>(fetchItem, (p) => p.includes(`/content/${tenant}/items/`));
   const fetchTokens = useCallback(() => getDesignTokens(tenant), [tenant]);
   const { data: tokens } = useLiveData<DesignTokens | null>(fetchTokens, (p) => p.includes(`/${tenant}/design-system/`));
   if (!item) return <p className="ws-slate" style={{ fontSize: 13 }}>Loading…</p>;
   const brand = tenantName;
+  const slidesAsset = item.assets.find((a) => a.content?.type === "slides");
+  const slides: CarouselSlideContent[] =
+    slidesAsset?.content?.type === "slides" ? slidesAsset.content.slides : [];
+  const isVisualPanel = (a: Asset) =>
+    a.kind === "carousel-visual" && a.package?.kind === "image" && slides.length > 0;
+  const orderedAssets = [...item.assets].sort((a, b) => Number(isVisualPanel(b)) - Number(isVisualPanel(a)));
+  const hasVisualPanel = item.assets.some(isVisualPanel);
 
   async function queueNote() {
     if (!instruction.trim()) return;
     await postRefine(tenant, itemId, instruction);
     setInstruction("");
     reload();
+  }
+
+  function today(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  async function setState(to: ContentState, date?: string) {
+    setActionError(null);
+    try {
+      await postState(tenant, itemId, to, date);
+      reload();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   return (
@@ -78,7 +104,9 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 22, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {item.assets.map((a) => <AssetView key={a.id} asset={a} tokens={tokens} brand={brand} />)}
+          {orderedAssets.map((a) => isVisualPanel(a)
+            ? <CarouselVisualPanel key={a.id} tenant={tenant} itemId={itemId} asset={a} slides={slides} tokens={tokens} />
+            : <AssetView key={a.id} asset={a} tokens={tokens} brand={brand} slideTextOnly={hasVisualPanel} />)}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -101,16 +129,21 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
           <div className="ws-card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
             <span className="ws-label">Actions</span>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <button type="button" className="ws-btn ws-btn-primary ws-btn-sm" onClick={() => postState(tenant, itemId, "approved").then(reload)}>
+              <button type="button" className="ws-btn ws-btn-primary ws-btn-sm" onClick={() => { void setState("approved"); }}>
                 Approve
               </button>
-              <button type="button" className="ws-btn ws-btn-sm" onClick={() => postState(tenant, itemId, "scheduled", new Date().toISOString().slice(0, 10)).then(reload)}>
+              <button type="button" className="ws-btn ws-btn-sm" onClick={() => { void setState("scheduled", today()); }}>
                 Schedule today
               </button>
-              <button type="button" className="ws-btn ws-btn-sm" onClick={() => postState(tenant, itemId, "posted").then(reload)}>
+              <button type="button" className="ws-btn ws-btn-sm" onClick={() => { void setState("posted", today()); }}>
                 Mark posted
               </button>
             </div>
+            {actionError ? (
+              <p style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5, color: "#e5484d" }}>
+                Action failed: {actionError}
+              </p>
+            ) : null}
             <p className="ws-slate" style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
               {tenantName}: refine reads best in Chat; one-shot drafting suits Headless.
             </p>

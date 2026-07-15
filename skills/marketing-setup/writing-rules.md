@@ -44,7 +44,7 @@ Each tenant's `voice.md` fixes the person and uses only that one. Pick the perso
   reverse.
 - Claims about a system's behavior end where the brand's involvement ended.
 - Avoid AI-isms and filler ("is exactly my world", "lives at the intersection", "in today's
-  fast-paced world", "unlock", "elevate", "seamless", "leverage", "game-changer").
+  fast-paced world", "unlock", "elevate", "seamless", "leverage", "game-changer", "not a bolt-on").
 
 ## Self-check before publishing
 

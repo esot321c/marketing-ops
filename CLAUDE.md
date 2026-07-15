@@ -43,6 +43,29 @@ When the user asks for a campaign, an SEO or content strategy, keyword research,
 
 After Init reaches `readyToPost`, the prep work is not finished. The agent's next job is to run competitor research, research keywords, draft a first content and SEO strategy, and plan a first campaign, in that order. Analytics comes later, once posts are live. Do not wait for the user to ask. When Init completes, and whenever the user asks what is next, tell them which prep pieces are still outstanding and offer to do them. Ask any questions you need, then save each result to `data/work/<tenant>/<type>/` so the dashboard shows it. Treat the four prep pieces (research, keywords, strategy, campaigns) as the agent's outstanding work, not the user's. The user finished Init; surfacing and doing the prep is on the agent.
 
+## Base writing rules: always on, everywhere
+
+The full shared rules are `skills/marketing-setup/writing-rules.md`; a tenant's `voice.md` layers
+persona (person, tone, vocabulary, canonical facts) on top. The core rules below bind ALWAYS: in
+drafts, slides, captions, strategy docs, and any line of copy proposed in chat. A hook pitched in
+conversation is copy. Run these checks before showing it, not after.
+
+- Verify first, then write. Any claim about the world (what people do or say, dates, releases,
+  study findings, statistics) needs a verified, recent, primary source, named where the claim
+  appears. Check the source page for follow-ups and updates before citing it. If no evidence
+  exists, cut the claim or label it explicitly as an assumption.
+- Never invent or embellish. No fabricated behavior ("the reflex is to...", "teams treat..."),
+  no invented recency ("just shipped" without a dated announcement), no story details beyond the
+  source, no "every / most / always" without data.
+- A generalizing filler sentence that would need a citation gets deleted, not sourced. The post
+  works without it.
+- Complete sentences in the tenant's register. No comma-spliced fragment cadence, no rule-of-three
+  beats, no slogan-shaped or aphoristic punchlines, no negative parallelism, no cleft sentences.
+  Punchiness comes from having something specific to say.
+- Plain keyboard punctuation only. No em dashes, anywhere, including chat replies.
+- Open with the reader's problem or with what happened, never with "I built". The takeaway follows
+  the events that earn it, and every post gives the reader something they can use.
+
 ## Generating content: ground it in real material, never fabricate
 
 When you generate posts, carousels, campaigns, strategy, example copy, or any content for a tenant,

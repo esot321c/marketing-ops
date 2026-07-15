@@ -1,6 +1,6 @@
 {
   "name": "marketing-ops",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Local AI marketing command center for research, content operations, creative production, and analytics review.",
   "scripts": {

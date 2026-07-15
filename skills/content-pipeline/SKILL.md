@@ -20,11 +20,13 @@ You produce and refine content for a tenant's content motion. The dashboard writ
 ## Drafting a piece (ContentItem)
 1. Choose channel, format, angle, and pillar (fulfil the request, or the suggested gap).
 2. Write the item to `data/content/<tenant>/items/<id>.json` matching the ContentItem shape:
-   `assets[]` with routes. Copy and blog bodies are `route: "local-harness"` with `content`. Visuals,
-   images, and video are `route: "external-tool"` with a `package` and `status: "needed"`, `tool`
-   set to the recommended generator (`claude-design` for on-brand carousels).
-3. Set `state: "in_review"`. For a carousel, add a `carousel-visual` external asset whose package is
-   a Claude Design prompt built from `design-system/tokens.json`.
+   `assets[]` with routes. Copy and blog bodies are `route: "local-harness"` with `content`.
+   Images and video are `route: "external-tool"` with a `package` and `status: "needed"`, `tool`
+   set to the intended generator (for example `nano-banana` or `chatgpt`).
+3. Set `state: "in_review"`. For a carousel, render the slides yourself from HTML in the tenant
+   design system and screenshot them into `data/content/<tenant>/assets/<item>/`; generative image
+   models are for background art only, never for typographic slides. See
+   `skills/carousel-builder/SKILL.md` for the full render flow.
 4. For a carousel, image post, or video, also write `caption`: the post's LinkedIn caption, one per
    post. Ground it, follow the writing rules, and cite any study or statistic it references. When the piece cites a study, report, or survey, also populate `citations` with a `{ label, url }` entry for each source, and name it in the caption.
 5. Person voice matches the tenant type: a personal brand speaks as "I", an agency or company as "we", a product addressing its audience as "you/your".

@@ -58,3 +58,44 @@ test("validateContentItem rejects a malformed citations array", () => {
   expect(validateContentItem({ ...item, citations: [{ label: "x" }] })).toBe(false);
   expect(validateContentItem({ ...item, citations: [{ label: 1, url: "u" }] })).toBe(false);
 });
+
+test("validateContentItem accepts slides with bullets and visual", () => {
+  expect(validateContentItem({
+    ...item,
+    format: "carousel",
+    assets: [{
+      id: "copy", kind: "copy", route: "local-harness", status: "ready",
+      content: { type: "slides", slides: [
+        { heading: "H1", body: "A lead-in sentence.", bullets: ["First item", "Second item"], visual: "numbered checklist" },
+        { heading: "H2", dark: true },
+      ] },
+    }],
+  })).toBe(true);
+});
+
+test("validateContentItem rejects malformed slides", () => {
+  const withSlides = (slides: unknown) => ({
+    ...item,
+    assets: [{ id: "c", kind: "copy", route: "local-harness", status: "ready", content: { type: "slides", slides } }],
+  });
+  expect(validateContentItem(withSlides([{ heading: 1 }]))).toBe(false);
+  expect(validateContentItem(withSlides([{ heading: "H", bullets: "nope" }]))).toBe(false);
+  expect(validateContentItem(withSlides([{ heading: "H", bullets: [""] }]))).toBe(false);
+  expect(validateContentItem(withSlides([{ heading: "H", visual: 3 }]))).toBe(false);
+  expect(validateContentItem(withSlides("nope"))).toBe(false);
+});
+
+test("validateContentItem checks image package treatment and slidePrompts", () => {
+  const withPackage = (extra: Record<string, unknown>) => ({
+    ...item,
+    assets: [{ id: "v", kind: "carousel-visual", route: "external-tool", status: "needed",
+      package: { kind: "image", prompt: "deck style", ...extra } }],
+  });
+  expect(validateContentItem(withPackage({}))).toBe(true);
+  expect(validateContentItem(withPackage({ treatment: "infographic", slidePrompts: [{ slide: 1, prompt: "p" }] }))).toBe(true);
+  expect(validateContentItem(withPackage({ treatment: "text-on-art" }))).toBe(true);
+  expect(validateContentItem(withPackage({ treatment: "collage" }))).toBe(false);
+  expect(validateContentItem(withPackage({ slidePrompts: [{ slide: 0, prompt: "p" }] }))).toBe(false);
+  expect(validateContentItem(withPackage({ slidePrompts: [{ prompt: "p" }] }))).toBe(false);
+  expect(validateContentItem(withPackage({ slidePrompts: "nope" }))).toBe(false);
+});

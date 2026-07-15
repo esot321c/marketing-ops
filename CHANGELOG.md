@@ -5,6 +5,29 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-15
+
+Carousel slides become images: structured slide copy, HTML-rendered infographics, and a slide-image workflow in the Composer.
+
+### Added
+
+- **Structured slide copy.** Carousel slides can carry `bullets` (rendered as a real list in the preview and in the copyable slide text) and `visual`, a one-line art direction for the slide image.
+- **Slide image workflow.** The server lists and serves per-item asset files, and the Composer shows a slide-by-slide panel with an upload slot per slide. When every slide has an image, a swipeable image deck becomes the primary preview and the text mock steps aside.
+- **ImageDeck component.** A design-system deck that pages through rendered slide images with the same dot navigation as the text deck.
+- **Base writing rules in CLAUDE.md.** The always-on core (verify claims against recent primary sources before writing, never fabricate or embellish, register and banned-shape rules) now binds every session and every proposed line, not just saved drafts.
+
+### Changed
+
+- **HTML-first carousel rendering.** Slides render from brand-system HTML screenshotted at 1080x1080, and the deck exports as a multi-page PDF for LinkedIn document posts. Generative image models are reserved for background art; the per-slide generator prompts (`slidePrompts`) remain only for that hand-off. The carousel and content-pipeline skills teach the new flow.
+- **Visual packages carry intent.** A carousel's image package records a `treatment` (finished infographic versus text over generated art) alongside its render notes.
+- **Shared writing rules.** "Not a bolt-on" joins the banned AI-ism list.
+
+### Fixed
+
+- Text post and slide bodies preserve paragraph breaks instead of collapsing into one block.
+- Composer state buttons surface failures inline and record the date when a piece is marked posted.
+- The learnings page constrains its width for readability.
+
 ## [0.5.0] - 2026-07-13
 
 Content pieces carry their own caption and cited sources, the pipeline board is draggable, and refine becomes one clear action.

@@ -16,10 +16,10 @@
       "content": {
         "type": "slides",
         "slides": [
-          { "heading": "Why most product demos win the room and lose the rollout", "body": "Notes from shipping software to real teams." },
-          { "heading": "A demo runs on clean, hand-picked inputs.", "body": "Production runs on whatever users actually send.", "dark": true },
-          { "heading": "Make the happy path boring and the edge cases loud.", "body": "Handle the mess before you polish the pitch." },
-          { "heading": "Earn the rollout, not just the applause.", "body": "example.dev" }
+          { "heading": "Why most product demos win the room and lose the rollout", "body": "Notes from shipping software to real teams.", "visual": "bold title card" },
+          { "heading": "A demo runs on clean, hand-picked inputs.", "body": "Production runs on whatever users actually send.", "dark": true, "visual": "split panel contrasting tidy and messy input" },
+          { "heading": "Make the happy path boring and the edge cases loud.", "body": "Before you polish the pitch, handle the mess.", "bullets": ["Malformed input", "Slow networks", "Half-finished sessions"], "visual": "checklist over a faint grid" },
+          { "heading": "Earn the rollout, and the applause follows.", "body": "example.dev", "visual": "closing card with the site URL" }
         ]
       }
     },
@@ -29,7 +29,11 @@
       "route": "external-tool",
       "tool": "claude-design",
       "status": "needed",
-      "package": { "kind": "image", "prompt": "Render a 4-slide LinkedIn carousel in the tenant's design system (paper background, accent color, and display/body fonts from design-system/tokens.json). Slide copy as provided." }
+      "package": {
+        "kind": "image",
+        "prompt": "Slides render locally from HTML in the tenant design system (paper background, single accent color, display serif headings, humanist sans body, from design-system/tokens.json). Source: data/content/example-personal/renders/example-carousel/slides.html, screenshotted at 1080x1080 per slide into data/content/example-personal/assets/example-carousel/. Slide 2 is the dark inverse variant.",
+        "treatment": "infographic"
+      }
     }
   ],
   "schedule": { "status": "unscheduled" },
