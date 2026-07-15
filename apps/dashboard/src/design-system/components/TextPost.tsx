@@ -61,6 +61,7 @@ export function TextPost({ tokens: t, kicker, headline, body, closer }: TextPost
     lineHeight: 1.6,
     color: t.color.inkSoft,
     margin: 0,
+    whiteSpace: "pre-line",
   };
 
   const closerStyle: CSSProperties = {

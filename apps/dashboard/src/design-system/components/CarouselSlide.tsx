@@ -87,6 +87,7 @@ export function CarouselSlide({
     lineHeight: 1.55,
     color: fgSoft,
     margin: `${t.space.sm} 0 0`,
+    whiteSpace: "pre-line",
   };
 
   const listStyle: CSSProperties = {
