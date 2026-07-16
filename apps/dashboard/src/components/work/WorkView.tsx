@@ -5,6 +5,7 @@ import { CopyPrompt } from "@/components/content/CopyPrompt";
 import { listWork, getWork, setWorkStatus } from "@/lib/api";
 import { capabilityById, promptFor, priorPrepMissing } from "@/lib/capabilities";
 import { useLiveData } from "@/hooks/useLiveData";
+import { AnalyticsCharts } from "@/components/analytics/AnalyticsCharts";
 import type { WorkArtifact, WorkArtifactSummary, WorkCounts } from "@/lib/types";
 
 interface WorkViewProps {
@@ -99,9 +100,12 @@ export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: Work
 
   if (items === null) return null;
 
+  const analyticsCharts = capId === "analytics" ? <AnalyticsCharts tenant={tenant} /> : null;
+
   if (items.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {analyticsCharts}
         {banner}
         <p className="ws-slate" style={{ fontSize: 12 }}>
           {capability.description}
@@ -119,6 +123,7 @@ export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: Work
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {analyticsCharts}
       {banner}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div className="ws-label">{capability.label}</div>
