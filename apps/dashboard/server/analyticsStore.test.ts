@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { Hono } from "hono";
-import { mkdir, rm, readdir } from "node:fs/promises";
+import { mkdir, rm, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { analyticsFile, readAnalytics, appendCapture } from "./analyticsStore.js";
 import { registerRoutes } from "./routes.js";
@@ -161,6 +161,31 @@ test("no tmp file is left behind after a write", async () => {
   const names = await readdir(tenantDir);
   expect(names).toContain("posts.json");
   expect(names.some((n) => n.endsWith(".tmp"))).toBe(false);
+});
+
+test("concurrent appendCapture calls for the same tenant both land in posts.json", async () => {
+  await Promise.all([
+    appendCapture(tenant, post({ id: "post-1" }), capture()),
+    appendCapture(
+      tenant,
+      post({ id: "post-2", urn: "urn:li:share:2222", postUrl: "https://example.com/posts/2222" }),
+      capture({ capturedAt: "2026-07-16T11:00:00.000Z", impressions: 500 })
+    ),
+  ]);
+
+  const data = await readAnalytics(tenant);
+  expect(data.posts).toHaveLength(2);
+  const ids = data.posts.map((p) => p.id).sort();
+  expect(ids).toEqual(["post-1", "post-2"]);
+});
+
+test("readAnalytics returns an empty posts array when the store file contains invalid JSON", async () => {
+  const file = analyticsFile(tenant)!;
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, "{ not valid json", "utf8");
+
+  const data = await readAnalytics(tenant);
+  expect(data).toEqual({ posts: [] });
 });
 
 const app = new Hono();

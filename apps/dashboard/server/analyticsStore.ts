@@ -5,6 +5,26 @@ import type { AnalyticsData, AnalyticsPost, AnalyticsCapture } from "../src/lib/
 
 const DEDUPE_WINDOW_MS = 60 * 60 * 1000;
 
+// Serializes appendCapture calls per tenant so concurrent read-modify-write
+// cycles (e.g. a file watcher firing once per dropped file) can't race and
+// silently drop one call's capture. Each tenant's calls are chained off the
+// tail of its own promise; the chain is kept alive across rejections so one
+// failed call never wedges later calls for the same tenant.
+const tenantLocks = new Map<string, Promise<unknown>>();
+
+function runExclusive<T>(tenant: string, task: () => Promise<T>): Promise<T> {
+  const previous = tenantLocks.get(tenant) ?? Promise.resolve();
+  const run = previous.then(task, task);
+  tenantLocks.set(
+    tenant,
+    run.then(
+      () => undefined,
+      () => undefined
+    )
+  );
+  return run;
+}
+
 export function analyticsFile(tenant: string): string | null {
   return resolveAnalyticsFile(tenant);
 }
@@ -42,7 +62,9 @@ function mergePostFields(
   const defined = Object.fromEntries(
     Object.entries(rest).filter(([, value]) => value !== undefined)
   );
-  // the matched post's id is its stable identity and is never overwritten
+  // Contract: on a urn/postUrl match, the existing post's id is its stable
+  // identity and is never overwritten by the incoming id. Callers must use
+  // the returned postId, not assume the incoming post's id was applied.
   return { ...existing, ...defined };
 }
 
@@ -72,29 +94,31 @@ export async function appendCapture(
   const file = analyticsFile(tenant);
   if (!file) throw new Error(`Invalid tenant: ${tenant}`);
 
-  const data = await readAnalytics(tenant);
-  const index = findPostIndex(data.posts, post);
+  return runExclusive(tenant, async () => {
+    const data = await readAnalytics(tenant);
+    const index = findPostIndex(data.posts, post);
 
-  if (index === -1) {
-    const newPost: AnalyticsPost = { ...post, captures: [capture] };
-    data.posts.push(newPost);
-    await writeAnalytics(file, data);
-    return { postId: newPost.id, deduped: false };
-  }
+    if (index === -1) {
+      const newPost: AnalyticsPost = { ...post, captures: [capture] };
+      data.posts.push(newPost);
+      await writeAnalytics(file, data);
+      return { postId: newPost.id, deduped: false };
+    }
 
-  const existing = data.posts[index]!;
-  const merged = mergePostFields(existing, post);
+    const existing = data.posts[index]!;
+    const merged = mergePostFields(existing, post);
 
-  if (findDuplicateCapture(merged.captures, capture)) {
+    if (findDuplicateCapture(merged.captures, capture)) {
+      data.posts[index] = merged;
+      await writeAnalytics(file, data);
+      return { postId: merged.id, deduped: true };
+    }
+
+    merged.captures = [...merged.captures, capture];
     data.posts[index] = merged;
     await writeAnalytics(file, data);
-    return { postId: merged.id, deduped: true };
-  }
-
-  merged.captures = [...merged.captures, capture];
-  data.posts[index] = merged;
-  await writeAnalytics(file, data);
-  return { postId: merged.id, deduped: false };
+    return { postId: merged.id, deduped: false };
+  });
 }
 
 async function writeAnalytics(file: string, data: AnalyticsData): Promise<void> {
