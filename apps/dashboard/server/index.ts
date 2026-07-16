@@ -2,10 +2,14 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { streamSSE } from "hono/streaming";
+import { mkdir } from "node:fs/promises";
+import chokidar from "chokidar";
 import { addClient, removeClient } from "./sse.js";
 import { startWatcher } from "./watcher.js";
 import { registerRoutes } from "./routes.js";
 import { registerWorkRoutes } from "./workRoutes.js";
+import { watchImports } from "./analyticsImport.js";
+import { analyticsImportsRoot } from "../src/lib/setupPaths.js";
 
 const app = new Hono();
 registerRoutes(app);
@@ -31,6 +35,20 @@ if (process.env.NODE_ENV === "production") {
 }
 
 startWatcher();
+
+async function startAnalyticsImportWatcher() {
+  await mkdir(analyticsImportsRoot, { recursive: true });
+  watchImports((dir, onFile) => {
+    const watcher = chokidar.watch(dir, {
+      ignoreInitial: false,
+      depth: 1,
+      awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
+    });
+    watcher.on("add", onFile);
+  });
+}
+void startAnalyticsImportWatcher();
+
 serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 8787 }, (info) =>
   console.log(`API on http://127.0.0.1:${info.port}`)
 );

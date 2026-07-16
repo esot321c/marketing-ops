@@ -15,6 +15,8 @@ import {
   analyticsRoot,
   resolveAnalyticsDir,
   resolveAnalyticsFile,
+  analyticsImportsRoot,
+  resolveAnalyticsImportsDir,
 } from "./setupPaths.js";
 
 test("isValidTenantId accepts kebab ids and rejects unsafe ones", () => {
@@ -104,4 +106,12 @@ test("resolveAnalyticsFile resolves to posts.json under the tenant analytics dir
   expect(file).not.toBeNull();
   expect(file?.endsWith(path.join("analytics", "example-agency", "posts.json"))).toBeTruthy();
   expect(resolveAnalyticsFile("../escape")).toBeNull();
+});
+
+test("resolveAnalyticsImportsDir confines under the analytics imports root", () => {
+  const dir = resolveAnalyticsImportsDir("example-agency");
+  expect(dir).not.toBeNull();
+  expect(dir?.startsWith(analyticsImportsRoot)).toBeTruthy();
+  expect(dir?.endsWith(path.join("analytics", "imports", "example-agency"))).toBeTruthy();
+  expect(resolveAnalyticsImportsDir("../escape")).toBeNull();
 });
