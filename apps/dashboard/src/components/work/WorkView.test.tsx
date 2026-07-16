@@ -132,6 +132,26 @@ test("clicking Approve calls setWorkStatus with approved", async () => {
   expect(setWorkStatus).toHaveBeenCalledWith("example-agency", "campaigns", "q3", "approved");
 });
 
+test("shows an error message when Approve fails", async () => {
+  vi.mocked(listWork).mockResolvedValue([
+    { slug: "q3", title: "Q3 push", created: "2026-03-01", status: "in_review" },
+  ]);
+  vi.mocked(getWork).mockResolvedValue({
+    slug: "q3",
+    title: "Q3 push",
+    created: "2026-03-01",
+    status: "in_review",
+    body: "Q3 body.",
+  });
+  vi.mocked(setWorkStatus).mockRejectedValue(new Error("Request failed: 500"));
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
+
+  const approveButton = await screen.findByText("Approve");
+  fireEvent.click(approveButton);
+
+  expect(await screen.findByText(/Request failed: 500/)).toBeTruthy();
+});
+
 test("archived docs are hidden by default and shown via the Show archived toggle", async () => {
   vi.mocked(listWork).mockResolvedValue([
     { slug: "live", title: "Live doc", created: "2026-03-01", status: "in_review" },

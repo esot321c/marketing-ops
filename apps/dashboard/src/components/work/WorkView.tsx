@@ -20,6 +20,7 @@ export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: Work
   const [openSlugs, setOpenSlugs] = useState<Set<string>>(new Set());
   const [details, setDetails] = useState<Record<string, WorkArtifact>>({});
   const [showArchived, setShowArchived] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const requested = useRef<Set<string>>(new Set());
   const autoOpened = useRef(false);
 
@@ -43,6 +44,7 @@ export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: Work
     setOpenSlugs(new Set());
     setDetails({});
     setShowArchived(false);
+    setActionError(null);
     requested.current = new Set();
     autoOpened.current = false;
   }, [tenant, capId]);
@@ -71,7 +73,10 @@ export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: Work
 
   const changeStatus = useCallback(
     (slug: string, status: "in_review" | "approved" | "archived") => {
-      void setWorkStatus(tenant, capId, slug, status);
+      setActionError(null);
+      setWorkStatus(tenant, capId, slug, status).catch((e) => {
+        setActionError(e instanceof Error ? e.message : String(e));
+      });
     },
     [tenant, capId],
   );
@@ -191,6 +196,11 @@ export function WorkView({ tenant, tenantName, capabilityId, counts = {} }: Work
                       </button>
                     )}
                   </div>
+                  {actionError ? (
+                    <p style={{ fontSize: 11.5, margin: 0, lineHeight: 1.5, color: "#e5484d" }}>
+                      Action failed: {actionError}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
             </div>
