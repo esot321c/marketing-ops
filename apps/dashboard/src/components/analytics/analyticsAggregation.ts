@@ -46,17 +46,30 @@ export function truncateTitle(title: string, max = 40): string {
   return title.slice(0, sliceLength) + ellipsis;
 }
 
-/** Formats an ISO timestamp as "YYYY-MM-DD HH:mm" in local time for chart tooltips. */
-export function formatTooltipTimestamp(value: string): string {
+/** Formats a value as local "YYYY-MM-DD", or the raw value when it cannot be parsed as a date. */
+export function formatLocalDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   const pad = (n: number) => String(n).padStart(2, "0");
   const year = date.getFullYear();
   const month = pad(date.getMonth() + 1);
   const day = pad(date.getDate());
+  return `${year}-${month}-${day}`;
+}
+
+/** Formats an ISO timestamp as "YYYY-MM-DD HH:mm" in local time for chart tooltips. */
+export function formatTooltipTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (n: number) => String(n).padStart(2, "0");
   const hours = pad(date.getHours());
   const minutes = pad(date.getMinutes());
-  return `${year}-${month}-${day} ${hours}:${minutes}`;
+  return `${formatLocalDate(value)} ${hours}:${minutes}`;
+}
+
+/** Formats an ISO timestamp as local "YYYY-MM-DD" for chart axis ticks (day granularity). */
+export function formatAxisDate(value: string): string {
+  return formatLocalDate(value);
 }
 
 export interface ImpressionSeriesPoint {

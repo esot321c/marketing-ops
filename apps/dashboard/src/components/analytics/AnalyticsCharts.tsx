@@ -25,6 +25,7 @@ import {
   audiencePanel,
   truncateTitle,
   formatTooltipTimestamp,
+  formatAxisDate,
   type PostTableRow,
 } from "./analyticsAggregation";
 
@@ -304,6 +305,7 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
               type="category"
               allowDuplicatedCategory={false}
               tick={{ fontSize: 11 }}
+              tickFormatter={formatAxisDate}
             />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip content={<ChartTooltip />} />

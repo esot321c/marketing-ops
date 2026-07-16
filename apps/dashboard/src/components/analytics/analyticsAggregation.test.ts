@@ -7,6 +7,7 @@ import {
   audiencePanel,
   truncateTitle,
   formatTooltipTimestamp,
+  formatAxisDate,
 } from "./analyticsAggregation.js";
 import type { AnalyticsCapture, AnalyticsPost } from "@/lib/analyticsTypes";
 
@@ -120,6 +121,20 @@ test("formatTooltipTimestamp pads single-digit month, day, hour and minute", () 
 
 test("formatTooltipTimestamp returns the raw value when it cannot be parsed as a date", () => {
   expect(formatTooltipTimestamp("not-a-date")).toBe("not-a-date");
+});
+
+test("formatAxisDate renders ISO timestamps as YYYY-MM-DD in local time", () => {
+  const iso = new Date(2026, 5, 2, 14, 5).toISOString();
+  expect(formatAxisDate(iso)).toBe("2026-06-02");
+});
+
+test("formatAxisDate pads single-digit month and day", () => {
+  const iso = new Date(2026, 0, 5, 9, 3).toISOString();
+  expect(formatAxisDate(iso)).toBe("2026-01-05");
+});
+
+test("formatAxisDate returns the raw value when it cannot be parsed as a date", () => {
+  expect(formatAxisDate("not-a-date")).toBe("not-a-date");
 });
 
 test("funnelData sums only the latest capture per post", () => {
