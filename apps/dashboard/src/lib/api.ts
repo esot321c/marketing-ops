@@ -2,6 +2,7 @@ import type { InitState, TenantSummary, ProfileSpec, WorkArtifactSummary, WorkAr
 import type { DesignTokens } from "@/design-system/types";
 import type { ContentItem, ContentState, RunMode, AgentAction, Learning, Cadence } from "@/lib/contentTypes";
 import type { Suggestion } from "@/lib/planner";
+import type { AnalyticsData } from "@/lib/analyticsTypes";
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -186,6 +187,10 @@ export function getWorkSummary(tenant: string): Promise<WorkCounts> {
 
 export function getWork(tenant: string, type: string, slug: string): Promise<WorkArtifact> {
   return jsonRequest<WorkArtifact>(`/api/work/${encodeURIComponent(tenant)}/${encodeURIComponent(type)}/${encodeURIComponent(slug)}`);
+}
+
+export function getAnalytics(tenant: string): Promise<AnalyticsData> {
+  return jsonRequest<AnalyticsData>(`/api/analytics/${encodeURIComponent(tenant)}`);
 }
 
 export async function setWorkStatus(

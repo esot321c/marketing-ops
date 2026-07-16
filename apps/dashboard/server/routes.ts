@@ -20,6 +20,8 @@ import {
   resolveContentAssetPath,
   resolveContentAssetDir,
 } from "../src/lib/setupPaths.js";
+import { isValidTenantId } from "../src/lib/setupPaths.js";
+import { readAnalytics } from "./analyticsStore.js";
 import { parseItems, boardIndex } from "../src/lib/contentLibrary.js";
 import { todayView } from "../src/lib/planner.js";
 import { parseLearnings, pendingFirst, decide } from "../src/lib/learnings.js";
@@ -75,6 +77,12 @@ async function appendRun(tenant: string, record: RunRecord): Promise<void> {
 
 export function registerRoutes(app: Hono) {
   app.get("/api/tenants", async (c) => c.json(await listTenants()));
+
+  app.get("/api/analytics/:tenant", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!isValidTenantId(tenant)) return c.json({ error: "Invalid tenant" }, 400);
+    return c.json(await readAnalytics(tenant));
+  });
 
   // Rendered markdown artifact a stage produced (voice.md, icp.md, etc.).
   app.get("/api/setup/:tenant/:stage/artifact", async (c) => {

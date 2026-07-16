@@ -154,3 +154,20 @@ export function resolveWorkFile(tenantId: string, type: string, slug: string): s
   const resolved = path.resolve(dir, `${slug}.md`);
   return resolved.startsWith(dir + path.sep) ? resolved : null;
 }
+
+// data/analytics lives alongside data/content, data/setup, and data/work.
+export const analyticsRoot = path.resolve(process.cwd(), "..", "..", "data", "analytics");
+
+export function resolveAnalyticsDir(tenantId: string): string | null {
+  if (!isValidTenantId(tenantId)) return null;
+  const resolved = path.resolve(analyticsRoot, tenantId);
+  if (resolved !== path.join(analyticsRoot, tenantId)) return null;
+  if (!resolved.startsWith(analyticsRoot + path.sep)) return null;
+  return resolved;
+}
+
+export function resolveAnalyticsFile(tenantId: string): string | null {
+  const dir = resolveAnalyticsDir(tenantId);
+  if (!dir) return null;
+  return path.join(dir, "posts.json");
+}
