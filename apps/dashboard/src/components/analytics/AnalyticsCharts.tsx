@@ -249,9 +249,12 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
             <Bar dataKey="value" fill="var(--ws-accent)" />
           </BarChart>
         </ChartFrame>
-        <div style={{ display: "none" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {funnel.map((f) => (
-            <span key={f.metric}>{f.value}</span>
+            <div key={f.metric} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+              <span className="ws-slate">{f.metric}</span>
+              <span>{f.value.toLocaleString()}</span>
+            </div>
           ))}
         </div>
       </div>
