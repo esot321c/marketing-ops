@@ -117,3 +117,13 @@ test("unknown labels are ignored", async () => {
   const result = await parseSinglePostWorkbook(buffer);
   expect(result.postUrl).toBe(POST_URL);
 });
+
+test("parses urn and titleSlug from a share-style post URL", async () => {
+  const shareUrl =
+    "https://www.linkedin.com/posts/example-profile-12ab34c_planning-a-product-launch-in-one-week-share-2000000000000000002-8SHs";
+  const buffer = await buildWorkbook([["Post URL", shareUrl]]);
+  const result = await parseSinglePostWorkbook(buffer);
+
+  expect(result.urn).toBe("share-2000000000000000002");
+  expect(result.titleSlug).toBe("planning a product launch in one week");
+});

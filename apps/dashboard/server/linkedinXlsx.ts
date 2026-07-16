@@ -10,7 +10,7 @@ export interface ParsedPostAnalytics {
   titleSlug: string | null;
 }
 
-const URN_PATTERN = /(ugcPost|activity)-(\d+)/;
+const URN_PATTERN = /(ugcPost|activity|share)-(\d+)/;
 
 const NUMERIC_LABELS: Record<string, keyof Omit<AnalyticsCapture, "capturedAt" | "source" | "demographics">> = {
   "Impressions": "impressions",
@@ -79,7 +79,7 @@ function parseUrn(url: string | null): string | null {
 
 function parseTitleSlug(url: string | null): string | null {
   if (url === null) return null;
-  const match = url.match(/([^/]+)-(ugcPost|activity)-\d+/);
+  const match = url.match(/([^/]+)-(ugcPost|activity|share)-\d+/);
   if (!match) return null;
   const segment = match[1]!;
   const parts = segment.split("_");
