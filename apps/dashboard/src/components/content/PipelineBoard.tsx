@@ -5,6 +5,7 @@ import { useLiveData } from "@/hooks/useLiveData";
 import { BOARD_STATES } from "@/lib/contentLibrary";
 import { dropArgs } from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
+import { effectiveFormat } from "@/lib/contentTypes";
 
 const LABELS: Record<ContentState, string> = {
   idea: "Ideas",
@@ -82,7 +83,7 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                   >
                     <div className="ws-ink" style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>{i.title}</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                      <span className="ws-pill ws-pill-mono">{i.format}</span>
+                      <span className="ws-pill ws-pill-mono">{effectiveFormat(i)}</span>
                     </div>
                   </button>
                 ))}

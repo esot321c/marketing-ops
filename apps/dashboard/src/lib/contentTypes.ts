@@ -169,6 +169,19 @@ export function isItemReady(item: ContentItem): boolean {
   return item.assets.length > 0 && item.assets.every((a) => a.status === "ready");
 }
 
+export function effectiveFormat(item: ContentItem): Format {
+  if (item.format === "short-video" || item.assets.some((a) => a.kind === "video")) {
+    return "short-video";
+  }
+  if (item.format === "carousel" || item.assets.some((a) => a.kind === "carousel-visual")) {
+    return "carousel";
+  }
+  if (item.format === "image-post" || item.assets.some((a) => a.kind === "image")) {
+    return "image-post";
+  }
+  return item.format;
+}
+
 export function validateContentItem(value: unknown): value is ContentItem {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;

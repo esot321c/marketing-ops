@@ -10,6 +10,7 @@ import { CitationsCard } from "./CitationsCard";
 import { SlideText } from "./SlideText";
 import { CarouselVisualPanel } from "./CarouselVisualPanel";
 import type { ContentItem, ContentState, Asset, CarouselSlideContent } from "@/lib/contentTypes";
+import { effectiveFormat } from "@/lib/contentTypes";
 import type { DesignTokens } from "@/design-system/types";
 
 function AssetView({ asset, tokens, brand, slideTextOnly }: { asset: Asset; tokens: DesignTokens | null; brand: string; slideTextOnly?: boolean }) {
@@ -94,7 +95,7 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
         <h1 className="ws-h1" style={{ fontSize: "1.35rem" }}>{item.title}</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
           <span className="ws-pill ws-pill-mono">{item.state}</span>
-          <span className="ws-pill ws-pill-accent">{item.format}</span>
+          <span className="ws-pill ws-pill-accent">{effectiveFormat(item)}</span>
           <span className="ws-pill">{item.angle}</span>
         </div>
       </header>
