@@ -64,6 +64,7 @@ test("importXlsxFile writes a capture using the file's mtime and moves the file 
   expect(post.captures[0]?.capturedAt).toBe(mtime.toISOString());
   expect(post.captures[0]?.source).toBe("xlsx-import");
   expect(post.captures[0]?.impressions).toBe(500);
+  expect(post.channel).toBe("linkedin");
 
   const remaining = await readdir(importsDir);
   expect(remaining).not.toContain("export.xlsx");

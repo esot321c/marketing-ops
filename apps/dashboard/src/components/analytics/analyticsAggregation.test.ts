@@ -5,6 +5,8 @@ import {
   funnelData,
   formatComparison,
   audiencePanel,
+  truncateTitle,
+  formatTooltipTimestamp,
 } from "./analyticsAggregation.js";
 import type { AnalyticsCapture, AnalyticsPost } from "@/lib/analyticsTypes";
 
@@ -51,6 +53,27 @@ test("postTableRows returns null metrics for a post with no captures", () => {
   expect(rows[0]!.impressions).toBeNull();
 });
 
+test("postTableRows uses the stored title by default", () => {
+  const rows = postTableRows([post({ id: "p1", title: "Stored title" })]);
+  expect(rows[0]!.title).toBe("Stored title");
+});
+
+test("postTableRows uses the resolved title from titleFor when provided", () => {
+  const p = post({ id: "p1", title: "Stored title", itemId: "item-1" });
+  const rows = postTableRows([p], (post) => (post.itemId ? "Linked item title" : post.title));
+  expect(rows[0]!.title).toBe("Linked item title");
+});
+
+test("postTableRows carries the channel field through", () => {
+  const rows = postTableRows([post({ id: "p1", channel: "linkedin" })]);
+  expect(rows[0]!.channel).toBe("linkedin");
+});
+
+test("postTableRows leaves channel undefined when absent", () => {
+  const rows = postTableRows([post({ id: "p1" })]);
+  expect(rows[0]!.channel).toBeUndefined();
+});
+
 test("impressionSeries sorts points chronologically", () => {
   const p = post({
     captures: [
@@ -60,6 +83,43 @@ test("impressionSeries sorts points chronologically", () => {
   });
   const series = impressionSeries([p]);
   expect(series[0]!.points.map((pt) => pt.capturedAt)).toEqual(["2026-06-01", "2026-06-05"]);
+});
+
+test("impressionSeries uses the resolved title from titleFor when provided", () => {
+  const p = post({ id: "p1", title: "Stored title", itemId: "item-1" });
+  const series = impressionSeries([p], (post) => (post.itemId ? "Linked item title" : post.title));
+  expect(series[0]!.title).toBe("Linked item title");
+});
+
+test("truncateTitle passes short titles through unchanged", () => {
+  expect(truncateTitle("Short title")).toBe("Short title");
+});
+
+test("truncateTitle truncates to 40 characters with an ellipsis character, not an em dash", () => {
+  const long = "This is a very long content item title that exceeds forty characters easily";
+  const result = truncateTitle(long);
+  expect(result.length).toBe(40);
+  expect(result.endsWith("...")).toBe(true);
+  expect(result).not.toContain("—");
+  expect(result).toBe(long.slice(0, 37) + "...");
+});
+
+test("truncateTitle respects a custom max length", () => {
+  expect(truncateTitle("abcdefghij", 5)).toBe("ab...");
+});
+
+test("formatTooltipTimestamp renders ISO timestamps as YYYY-MM-DD HH:mm in local time", () => {
+  const iso = new Date(2026, 5, 2, 14, 5).toISOString();
+  expect(formatTooltipTimestamp(iso)).toBe("2026-06-02 14:05");
+});
+
+test("formatTooltipTimestamp pads single-digit month, day, hour and minute", () => {
+  const iso = new Date(2026, 0, 5, 9, 3).toISOString();
+  expect(formatTooltipTimestamp(iso)).toBe("2026-01-05 09:03");
+});
+
+test("formatTooltipTimestamp returns the raw value when it cannot be parsed as a date", () => {
+  expect(formatTooltipTimestamp("not-a-date")).toBe("not-a-date");
 });
 
 test("funnelData sums only the latest capture per post", () => {

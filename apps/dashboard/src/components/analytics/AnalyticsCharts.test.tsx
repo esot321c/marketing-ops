@@ -1,15 +1,48 @@
 // @vitest-environment jsdom
-import { test, expect, vi } from "vitest";
+import { test, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { AnalyticsCharts } from "./AnalyticsCharts.js";
-import { getAnalytics } from "@/lib/api";
+import { getAnalytics, getBoard } from "@/lib/api";
 import type { AnalyticsPost } from "@/lib/analyticsTypes";
+import type { ContentItem, ContentState } from "@/lib/contentTypes";
 
 class MockEventSource { addEventListener() {} close() {} }
 // @ts-expect-error test stub
 globalThis.EventSource = MockEventSource;
 
-vi.mock("@/lib/api", () => ({ getAnalytics: vi.fn() }));
+vi.mock("@/lib/api", () => ({ getAnalytics: vi.fn(), getBoard: vi.fn() }));
+
+const EMPTY_BOARD: Record<ContentState, ContentItem[]> = {
+  idea: [],
+  drafting: [],
+  in_review: [],
+  approved: [],
+  scheduled: [],
+  posted: [],
+  measured: [],
+};
+
+function contentItem(overrides: Partial<ContentItem>): ContentItem {
+  return {
+    id: "item-1",
+    tenantId: "example-agency",
+    channel: "linkedin",
+    format: "text-post",
+    state: "posted",
+    title: "Untitled item",
+    angle: "a",
+    pillar: "p",
+    assets: [],
+    schedule: { status: "unscheduled" },
+    source: [],
+    refineLog: [],
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.mocked(getBoard).mockResolvedValue(EMPTY_BOARD);
+});
 
 function post(overrides: Partial<AnalyticsPost>): AnalyticsPost {
   return {
@@ -228,4 +261,87 @@ test("funnel sums latest captures only, not every historical capture", async () 
   const funnel = await screen.findByTestId("analytics-funnel");
   expect(funnel.textContent).toContain("150");
   expect(funnel.textContent).not.toContain("1050");
+});
+
+test("shows the linked content item's title when a post has an itemId, not the stored title", async () => {
+  vi.mocked(getBoard).mockResolvedValue({
+    ...EMPTY_BOARD,
+    posted: [contentItem({ id: "item-1", title: "Linked item title" })],
+  });
+  vi.mocked(getAnalytics).mockResolvedValue({
+    posts: [post({ id: "p1", title: "Stored slug title", itemId: "item-1" })],
+  });
+
+  render(<AnalyticsCharts tenant="example-agency" />);
+
+  expect(await screen.findByText("Linked item title")).toBeTruthy();
+  expect(screen.queryByText("Stored slug title")).toBeNull();
+});
+
+test("falls back to the stored title when itemId has no matching content item", async () => {
+  vi.mocked(getBoard).mockResolvedValue(EMPTY_BOARD);
+  vi.mocked(getAnalytics).mockResolvedValue({
+    posts: [post({ id: "p1", title: "Stored slug title", itemId: "missing-item" })],
+  });
+
+  render(<AnalyticsCharts tenant="example-agency" />);
+
+  expect(await screen.findByText("Stored slug title")).toBeTruthy();
+});
+
+test("falls back to the stored title when a post has no itemId", async () => {
+  vi.mocked(getBoard).mockResolvedValue(EMPTY_BOARD);
+  vi.mocked(getAnalytics).mockResolvedValue({
+    posts: [post({ id: "p1", title: "Stored slug title" })],
+  });
+
+  render(<AnalyticsCharts tenant="example-agency" />);
+
+  expect(await screen.findByText("Stored slug title")).toBeTruthy();
+});
+
+test("table title cell truncates visually via CSS ellipsis but keeps the full title in the title attribute", async () => {
+  const longTitle = "This is a very long content item title that exceeds forty characters easily";
+  vi.mocked(getBoard).mockResolvedValue(EMPTY_BOARD);
+  vi.mocked(getAnalytics).mockResolvedValue({
+    posts: [post({ id: "p1", title: longTitle })],
+  });
+
+  render(<AnalyticsCharts tenant="example-agency" />);
+
+  const cell = await screen.findByTitle(longTitle);
+  expect(cell.textContent).toBe(longTitle);
+  const style = (cell as HTMLElement).style;
+  expect(style.overflow).toBe("hidden");
+  expect(style.textOverflow).toBe("ellipsis");
+  expect(style.whiteSpace).toBe("nowrap");
+});
+
+test("channel column renders a badge with the post's channel", async () => {
+  vi.mocked(getBoard).mockResolvedValue(EMPTY_BOARD);
+  vi.mocked(getAnalytics).mockResolvedValue({
+    posts: [post({ id: "p1", title: "Channel post", channel: "linkedin" })],
+  });
+
+  render(<AnalyticsCharts tenant="example-agency" />);
+
+  const table = await screen.findByTestId("analytics-post-table");
+  const badge = table.querySelector('[data-slot="badge"]');
+  expect(badge).toBeTruthy();
+  expect(badge!.textContent).toBe("linkedin");
+});
+
+test("channel column renders a dash when the post has no channel", async () => {
+  vi.mocked(getBoard).mockResolvedValue(EMPTY_BOARD);
+  vi.mocked(getAnalytics).mockResolvedValue({
+    posts: [post({ id: "p1", title: "No channel post" })],
+  });
+
+  render(<AnalyticsCharts tenant="example-agency" />);
+
+  await screen.findByTestId("analytics-post-table");
+  const row = screen.getByText("No channel post").closest("tr");
+  expect(row).toBeTruthy();
+  expect(row!.querySelector('[data-slot="badge"]')).toBeNull();
+  expect(row!.textContent).toContain("-");
 });

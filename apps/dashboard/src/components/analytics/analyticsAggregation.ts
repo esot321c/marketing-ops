@@ -21,12 +21,42 @@ export interface PostTableRow {
   postedAt?: string;
   format?: string;
   linkPlacement?: string;
+  channel?: string;
   impressions: number | null;
   membersReached: number | null;
   socialEngagements: number | null;
   profileViewers: number | null;
   followersGained: number | null;
   linkEngagements: number | null;
+}
+
+/** Resolves the display title for a post; defaults to the post's stored title. */
+export type TitleResolver = (post: AnalyticsPost) => string;
+
+const defaultTitleFor: TitleResolver = (post) => post.title;
+
+/**
+ * Truncates a title to at most `max` characters, appending "..." (never an
+ * em dash) when truncation occurs.
+ */
+export function truncateTitle(title: string, max = 40): string {
+  if (title.length <= max) return title;
+  const ellipsis = "...";
+  const sliceLength = Math.max(0, max - ellipsis.length);
+  return title.slice(0, sliceLength) + ellipsis;
+}
+
+/** Formats an ISO timestamp as "YYYY-MM-DD HH:mm" in local time for chart tooltips. */
+export function formatTooltipTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
 export interface ImpressionSeriesPoint {
@@ -63,15 +93,16 @@ function latestCapture(post: AnalyticsPost): AnalyticsCapture | null {
   );
 }
 
-export function postTableRows(posts: AnalyticsPost[]): PostTableRow[] {
+export function postTableRows(posts: AnalyticsPost[], titleFor: TitleResolver = defaultTitleFor): PostTableRow[] {
   return posts.map((post) => {
     const latest = latestCapture(post);
     return {
       id: post.id,
-      title: post.title,
+      title: titleFor(post),
       postedAt: post.postedAt,
       format: post.format,
       linkPlacement: post.linkPlacement,
+      channel: post.channel,
       impressions: latest?.impressions ?? null,
       membersReached: latest?.membersReached ?? null,
       socialEngagements: latest?.socialEngagements ?? null,
@@ -82,10 +113,10 @@ export function postTableRows(posts: AnalyticsPost[]): PostTableRow[] {
   });
 }
 
-export function impressionSeries(posts: AnalyticsPost[]): ImpressionSeries[] {
+export function impressionSeries(posts: AnalyticsPost[], titleFor: TitleResolver = defaultTitleFor): ImpressionSeries[] {
   return posts.map((post) => ({
     postId: post.id,
-    title: post.title,
+    title: titleFor(post),
     points: [...post.captures]
       .sort((a, b) => (a.capturedAt < b.capturedAt ? -1 : a.capturedAt > b.capturedAt ? 1 : 0))
       .map((c) => ({ capturedAt: c.capturedAt, impressions: c.impressions })),

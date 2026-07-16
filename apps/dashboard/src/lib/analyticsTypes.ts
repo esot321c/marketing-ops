@@ -40,6 +40,7 @@ export interface AnalyticsPost {
   postedTime?: string;
   format?: string;
   linkPlacement?: "body" | "self-comment" | "none";
+  channel?: string;
   captures: AnalyticsCapture[];
 }
 

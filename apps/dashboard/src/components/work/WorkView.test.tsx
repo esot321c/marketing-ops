@@ -2,7 +2,7 @@
 import { test, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { WorkView } from "./WorkView.js";
-import { listWork, getWork, setWorkStatus, getAnalytics } from "@/lib/api";
+import { listWork, getWork, setWorkStatus, getAnalytics, getBoard } from "@/lib/api";
 
 class MockEventSource { addEventListener() {} close() {} }
 // @ts-expect-error test stub
@@ -13,6 +13,7 @@ vi.mock("@/lib/api", () => ({
   getWork: vi.fn(),
   setWorkStatus: vi.fn(),
   getAnalytics: vi.fn(),
+  getBoard: vi.fn(),
 }));
 
 test("shows empty-state prompt when there is no work yet", async () => {
@@ -183,6 +184,15 @@ test("archived docs are hidden by default and shown via the Show archived toggle
 test("renders analytics charts above the doc list for the analytics capability", async () => {
   vi.mocked(listWork).mockResolvedValue([]);
   vi.mocked(getAnalytics).mockResolvedValue({ posts: [] });
+  vi.mocked(getBoard).mockResolvedValue({
+    idea: [],
+    drafting: [],
+    in_review: [],
+    approved: [],
+    scheduled: [],
+    posted: [],
+    measured: [],
+  });
   render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="analytics" />);
 
   expect(await screen.findByText(/data\/analytics\/imports\/example-agency\//)).toBeTruthy();

@@ -11,15 +11,20 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { getAnalytics } from "@/lib/api";
+import type { TooltipContentProps } from "recharts";
+import { getAnalytics, getBoard } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
-import type { AnalyticsData } from "@/lib/analyticsTypes";
+import { Badge } from "@/components/ui/badge";
+import type { AnalyticsData, AnalyticsPost } from "@/lib/analyticsTypes";
+import type { ContentItem, ContentState } from "@/lib/contentTypes";
 import {
   postTableRows,
   impressionSeries,
   funnelData,
   formatComparison,
   audiencePanel,
+  truncateTitle,
+  formatTooltipTimestamp,
   type PostTableRow,
 } from "./analyticsAggregation";
 
@@ -29,7 +34,63 @@ function fmt(value: number | null): string {
   return value === null ? "-" : value.toLocaleString();
 }
 
-type SortKey = keyof Omit<PostTableRow, "id" | "title" | "postedAt" | "format" | "linkPlacement">;
+function titleResolver(itemTitles: Map<string, string>) {
+  return (post: AnalyticsPost): string => {
+    if (post.itemId) {
+      const linked = itemTitles.get(post.itemId);
+      if (linked) return linked;
+    }
+    return post.title;
+  };
+}
+
+type SortKey = keyof Omit<PostTableRow, "id" | "title" | "postedAt" | "format" | "linkPlacement" | "channel">;
+
+function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
+  if (!active || !payload || payload.length === 0) return null;
+  const formattedLabel = typeof label === "string" ? formatTooltipTimestamp(label) : label;
+  return (
+    <div
+      style={{
+        background: "var(--ws-raised)",
+        border: "1px solid var(--ws-line)",
+        borderRadius: 8,
+        padding: "8px 10px",
+        boxShadow: "var(--ws-shadow)",
+        fontSize: 12.5,
+        color: "var(--ws-ink)",
+      }}
+    >
+      {formattedLabel ? (
+        <div className="ws-mono" style={{ fontSize: 10.5, color: "var(--ws-slate)", marginBottom: 4 }}>
+          {formattedLabel}
+        </div>
+      ) : null}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {payload.map((entry, i) => (
+          <div key={`${entry.dataKey ?? i}`} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: entry.color ?? "var(--ws-accent)",
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ color: "var(--ws-ink)" }}>
+              {truncateTitle(String(entry.name ?? entry.dataKey ?? ""))}:
+            </span>
+            <span style={{ color: "var(--ws-ink)", fontWeight: 600 }}>
+              {typeof entry.value === "number" ? entry.value.toLocaleString() : entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function useHasSize(): [React.RefObject<HTMLDivElement | null>, boolean] {
   const ref = useRef<HTMLDivElement>(null);
@@ -111,6 +172,12 @@ function PostTable({ rows }: { rows: PostTableRow[] }) {
     fontSize: 13,
     whiteSpace: "nowrap",
   };
+  const titleTdStyle: React.CSSProperties = {
+    ...tdStyle,
+    maxWidth: 260,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  };
 
   return (
     <table
@@ -123,6 +190,7 @@ function PostTable({ rows }: { rows: PostTableRow[] }) {
           <th style={thStyle}>Posted</th>
           <th style={thStyle}>Format</th>
           <th style={thStyle}>Link placement</th>
+          <th style={thStyle}>Channel</th>
           {columns.map((col) => (
             <th key={col.key} style={thStyle} onClick={() => onSort(col.key)}>
               {col.label}
@@ -134,10 +202,11 @@ function PostTable({ rows }: { rows: PostTableRow[] }) {
       <tbody>
         {sorted.map((row) => (
           <tr key={row.id}>
-            <td style={tdStyle}>{row.title}</td>
+            <td style={titleTdStyle} title={row.title}>{row.title}</td>
             <td style={tdStyle}>{row.postedAt ?? "-"}</td>
             <td style={tdStyle}>{row.format ?? "-"}</td>
             <td style={tdStyle}>{row.linkPlacement ?? "-"}</td>
+            <td style={tdStyle}>{row.channel ? <Badge variant="secondary">{row.channel}</Badge> : "-"}</td>
             {columns.map((col) => (
               <td key={col.key} style={tdStyle}>
                 {fmt(row[col.key])}
@@ -182,6 +251,26 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
   const shouldRefetch = useCallback((p: string) => p.includes(`/analytics/${tenant}`), [tenant]);
   const { data } = useLiveData<AnalyticsData>(fetchAnalytics, shouldRefetch);
 
+  const [itemTitles, setItemTitles] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    void getBoard(tenant)
+      .then((board: Record<ContentState, ContentItem[]>) => {
+        if (cancelled) return;
+        const map = new Map<string, string>();
+        for (const items of Object.values(board)) {
+          for (const item of items) map.set(item.id, item.title);
+        }
+        setItemTitles(map);
+      })
+      .catch(() => {
+        /* fall back to stored titles when the content board can't be loaded */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenant]);
+
   if (data === null) return null;
 
   if (data.posts.length === 0) {
@@ -196,8 +285,9 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
     );
   }
 
-  const rows = postTableRows(data.posts);
-  const series = impressionSeries(data.posts);
+  const resolveTitle = titleResolver(itemTitles);
+  const rows = postTableRows(data.posts, resolveTitle);
+  const series = impressionSeries(data.posts, resolveTitle);
   const funnel = funnelData(data.posts);
   const byFormat = formatComparison(data.posts);
   const audience = audiencePanel(data.posts);
@@ -216,14 +306,14 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
               tick={{ fontSize: 11 }}
             />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
+            <Tooltip content={<ChartTooltip />} />
             <Legend />
             {series.map((s, i) => (
               <Line
                 key={s.postId}
                 data={s.points}
                 dataKey="impressions"
-                name={s.title}
+                name={truncateTitle(s.title)}
                 stroke={LINE_COLORS[i % LINE_COLORS.length]}
                 dot
                 connectNulls
@@ -245,7 +335,7 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
             <CartesianGrid stroke="var(--ws-line)" strokeDasharray="3 3" />
             <XAxis type="number" tick={{ fontSize: 11 }} />
             <YAxis dataKey="metric" type="category" width={140} tick={{ fontSize: 11 }} />
-            <Tooltip />
+            <Tooltip content={<ChartTooltip />} />
             <Bar dataKey="value" fill="var(--ws-accent)" />
           </BarChart>
         </ChartFrame>
@@ -267,7 +357,7 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
               <CartesianGrid stroke="var(--ws-line)" strokeDasharray="3 3" />
               <XAxis dataKey="format" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
+              <Tooltip content={<ChartTooltip />} />
               <Legend />
               <Bar dataKey="medianImpressions" name="Median impressions" fill="var(--ws-accent)" />
               <Bar dataKey="medianSocialEngagements" name="Median social engagements" fill="var(--ws-slate)" />

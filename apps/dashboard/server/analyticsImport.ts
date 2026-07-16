@@ -89,6 +89,7 @@ export async function importXlsxFile(
     const post: Omit<AnalyticsPost, "captures"> = {
       id,
       title,
+      channel: "linkedin",
       ...(parsed.postUrl ? { postUrl: parsed.postUrl } : {}),
       ...(parsed.urn ? { urn: parsed.urn } : {}),
       ...(parsed.postedAt ? { postedAt: parsed.postedAt } : {}),
