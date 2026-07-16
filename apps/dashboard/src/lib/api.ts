@@ -188,6 +188,18 @@ export function getWork(tenant: string, type: string, slug: string): Promise<Wor
   return jsonRequest<WorkArtifact>(`/api/work/${encodeURIComponent(tenant)}/${encodeURIComponent(type)}/${encodeURIComponent(slug)}`);
 }
 
+export async function setWorkStatus(
+  tenant: string,
+  type: string,
+  slug: string,
+  status: "in_review" | "approved" | "archived"
+): Promise<void> {
+  await jsonRequest<WorkArtifactSummary>(
+    `/api/work/${encodeURIComponent(tenant)}/${encodeURIComponent(type)}/${encodeURIComponent(slug)}/status`,
+    { method: "POST", body: JSON.stringify({ status }) }
+  );
+}
+
 export function listItemAssets(tenant: string, id: string): Promise<string[]> {
   return jsonRequest<string[]>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/assets`);
 }
