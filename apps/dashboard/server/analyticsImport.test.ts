@@ -22,9 +22,9 @@ async function buildWorkbookBuffer(rows: [string, string?, string?][]): Promise<
   return Buffer.from(arrayBuffer);
 }
 
-function validRows(): [string, string?, string?][] {
+function validRows(postUrl: string = POST_URL): [string, string?, string?][] {
   return [
-    ["Post URL", POST_URL],
+    ["Post URL", postUrl],
     ["Post Date", "7/16/2026"],
     ["Impressions", "500"],
     ["Reactions", "40"],
@@ -124,6 +124,69 @@ test("proposes itemId by normalized-prefix match against a single content item",
       refineLog: [],
     })
   );
+
+  const filePath = path.join(importsDir, "export.xlsx");
+  await writeFile(filePath, await buildWorkbookBuffer(validRows()));
+
+  await importXlsxFile(tenant, filePath);
+
+  const data = await readAnalytics(tenant);
+  expect(data.posts[0]?.itemId).toBe("match");
+});
+
+const SHORT_SLUG_URL =
+  "https://www.linkedin.com/posts/example-agency_ai-ethics-in-marketing-today-ugcPost-1000000000000000001-Ab3d";
+
+const RUNS_PAST_HEADLINE_URL =
+  "https://www.linkedin.com/posts/example-agency_marketing-automation-guide-for-busy-founders-ugcPost-1000000000000000001-Ab3d";
+
+async function writeContentItem(title: string): Promise<void> {
+  await mkdir(path.join(tenantContentDir, "items"), { recursive: true });
+  await writeFile(
+    path.join(tenantContentDir, "items", "match.json"),
+    JSON.stringify({
+      id: "match",
+      tenantId: tenant,
+      channel: "linkedin",
+      format: "text-post",
+      state: "posted",
+      title,
+      angle: "a",
+      pillar: "p",
+      assets: [],
+      schedule: { status: "unscheduled" },
+      source: [],
+      refineLog: [],
+    })
+  );
+}
+
+test("does not propose an itemId when the title is too short to guard against a false prefix match", async () => {
+  await writeContentItem("AI");
+
+  const filePath = path.join(importsDir, "export.xlsx");
+  await writeFile(filePath, await buildWorkbookBuffer(validRows(SHORT_SLUG_URL)));
+
+  await importXlsxFile(tenant, filePath);
+
+  const data = await readAnalytics(tenant);
+  expect(data.posts[0]?.itemId).toBeUndefined();
+});
+
+test("proposes itemId when a long-enough headline is a prefix of the slug", async () => {
+  await writeContentItem("Marketing Automation Guide");
+
+  const filePath = path.join(importsDir, "export.xlsx");
+  await writeFile(filePath, await buildWorkbookBuffer(validRows(RUNS_PAST_HEADLINE_URL)));
+
+  await importXlsxFile(tenant, filePath);
+
+  const data = await readAnalytics(tenant);
+  expect(data.posts[0]?.itemId).toBe("match");
+});
+
+test("proposes itemId when the slug is a prefix of a long headline (existing behavior)", async () => {
+  await writeContentItem("Why Shipping Beats Polishing Every Time");
 
   const filePath = path.join(importsDir, "export.xlsx");
   await writeFile(filePath, await buildWorkbookBuffer(validRows()));

@@ -17,6 +17,12 @@ function normalize(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// LinkedIn slugs are length-capped, so a directional prefix match can go either way:
+// a long headline gets truncated into the slug, or a short headline's slug keeps
+// running into the post body. Either direction is only trustworthy once the shorter
+// of the two strings carries enough signal to rule out a coincidental match.
+const MIN_PREFIX_MATCH_LENGTH = 16;
+
 async function findMatchingItemId(tenant: string, titleSlug: string | null): Promise<string | undefined> {
   if (!titleSlug) return undefined;
   const dir = resolveContentDir(tenant);
@@ -49,6 +55,7 @@ async function findMatchingItemId(tenant: string, titleSlug: string | null): Pro
     }
     const isMatch = candidates.some((c) => {
       const normalized = normalize(c);
+      if (Math.min(normalized.length, needle.length) < MIN_PREFIX_MATCH_LENGTH) return false;
       return normalized.startsWith(needle) || needle.startsWith(normalized);
     });
     if (isMatch && typeof item.id === "string") matches.push(item.id);
