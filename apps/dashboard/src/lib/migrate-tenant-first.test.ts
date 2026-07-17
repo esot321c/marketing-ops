@@ -350,7 +350,7 @@ test("a tenant name colliding with a reserved directory aborts pre-flight with n
   expect(await exists(path.join(dataDir, "shared"))).toBe(false);
 });
 
-test.each(["shared", "tenants", "imports", "brands", "guides", "research", "accounts", "campaigns", "assets", "generated"])(
+test.each(["shared", "tenants", "imports", "brands", "guides", "research", "accounts", "campaigns", "assets", "generated", "calendar"])(
   "reserved name '%s' aborts discovery pre-flight",
   async (reservedName) => {
     await mkdir(path.join(dataDir, "setup", reservedName), { recursive: true });

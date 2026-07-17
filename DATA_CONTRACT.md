@@ -22,7 +22,7 @@ and the global registry files under `data/shared/`. The script is idempotent (ru
 no-op) and refuses to overwrite a destination that already has different content; pass `--dry-run`
 to preview the moves first. It also aborts pre-flight, moving nothing, if a discovered tenant name
 collides with a reserved directory (`shared`, `tenants`, `imports`, `brands`, `guides`, `research`,
-`accounts`, `campaigns`, `assets`, `generated`) or is not a valid lowercase-kebab tenant id.
+`accounts`, `campaigns`, `assets`, `generated`, `calendar`) or is not a valid lowercase-kebab tenant id.
 
 ## System Layer
 

@@ -35,6 +35,7 @@ const RESERVED_NAMES = new Set([
   "campaigns",
   "assets",
   "generated",
+  "calendar",
 ]);
 
 // Must match apps/dashboard/src/lib/setupPaths.ts's isValidTenantId (lowercase
