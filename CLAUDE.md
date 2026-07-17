@@ -35,6 +35,22 @@ CHANGELOG, releases, PRs, tags, commit messages):
 - Scan the diff for real names, real domains, and private content. If anything looks personal, STOP
   and ask the human before publishing.
 
+## Recording analytics
+
+Post analytics arrive two ways and BOTH must land in the structured store
+`data/analytics/<tenant>/posts.json`, which feeds the dashboard's analytics charts:
+
+- Exported files (for example LinkedIn XLSX exports) dropped into
+  `data/analytics/imports/<tenant>/` import automatically while the dashboard server runs.
+- Numbers the user pastes or types into chat: the agent appends them to `posts.json` as a
+  capture with `source: "manual"` on the matching post record (match by urn or postUrl when
+  known, otherwise a stable slug id), never fabricating fields the paste does not contain
+  (absent numbers are null). Link the post to its content item via `itemId` when one exists.
+
+The markdown log under `data/work/<tenant>/analytics/` stays the narrative layer
+(observations, hypotheses, capture schedules); it is not the database. Record numbers in
+`posts.json` first, then update the narrative log.
+
 ## Surfacing capabilities
 
 When the user asks for a campaign, an SEO or content strategy, keyword research, competitor research, or an analytics review, save the result to `data/work/<tenant>/<type>/<slug>.md` with `title`, `created`, and `status` frontmatter so the dashboard shows it. The five types are `campaigns`, `strategy`, `keywords`, `research`, and `analytics`. When a workspace is ready, proactively tell the user these capabilities exist and how to ask, for example by pointing them at the Ask panel in the dashboard.

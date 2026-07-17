@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
-import { gateFor, isItemReady, validateContentItem } from "./contentTypes.js";
-import type { ContentItem } from "./contentTypes.js";
+import { effectiveFormat, gateFor, isItemReady, validateContentItem } from "./contentTypes.js";
+import type { Asset, ContentItem } from "./contentTypes.js";
 
 const item: ContentItem = {
   id: "i1", tenantId: "example-personal", channel: "linkedin", format: "text-post",
@@ -83,6 +83,28 @@ test("validateContentItem rejects malformed slides", () => {
   expect(validateContentItem(withSlides([{ heading: "H", bullets: [""] }]))).toBe(false);
   expect(validateContentItem(withSlides([{ heading: "H", visual: 3 }]))).toBe(false);
   expect(validateContentItem(withSlides("nope"))).toBe(false);
+});
+
+test("effectiveFormat: text-post with only a copy asset stays text-post", () => {
+  expect(effectiveFormat(item)).toBe("text-post");
+});
+
+test("effectiveFormat: text-post with a copy asset plus an image asset is image-post", () => {
+  const imageAsset: Asset = { id: "a2", kind: "image", route: "external-tool", status: "needed" };
+  const withImage: ContentItem = { ...item, assets: [...item.assets, imageAsset] };
+  expect(effectiveFormat(withImage)).toBe("image-post");
+});
+
+test("effectiveFormat: carousel stays carousel", () => {
+  expect(effectiveFormat({ ...item, format: "carousel" })).toBe("carousel");
+});
+
+test("effectiveFormat: short-video stays short-video", () => {
+  expect(effectiveFormat({ ...item, format: "short-video" })).toBe("short-video");
+});
+
+test("effectiveFormat: image-post format with no image asset yet stays image-post", () => {
+  expect(effectiveFormat({ ...item, format: "image-post" })).toBe("image-post");
 });
 
 test("validateContentItem checks image package treatment and slidePrompts", () => {

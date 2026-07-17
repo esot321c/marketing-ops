@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { getToday, postRequest } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import type { ContentItem } from "@/lib/contentTypes";
+import { effectiveFormat } from "@/lib/contentTypes";
 import type { Suggestion } from "@/lib/planner";
 import { RunModeSelect } from "./RunModeSelect";
 
@@ -43,9 +44,24 @@ export function TodayView({ tenant, onOpen }: { tenant: string; onOpen: (id: str
                   <button key={i.id} type="button" className="ws-card-btn" onClick={() => onOpen(i.id)}>
                     <div className="ws-serif ws-ink" style={{ fontSize: 15, fontWeight: 600 }}>{i.title}</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                      <span className="ws-pill ws-pill-accent ws-pill-mono">{i.format}</span>
-                      <span className="ws-pill">{i.angle}</span>
+                      <span className="ws-pill ws-pill-accent ws-pill-mono">{effectiveFormat(i)}</span>
                     </div>
+                    {i.angle ? (
+                      <p
+                        className="ws-slate"
+                        style={{
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          margin: "6px 0 0",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {i.angle}
+                      </p>
+                    ) : null}
                   </button>
                 ))}
               </div>

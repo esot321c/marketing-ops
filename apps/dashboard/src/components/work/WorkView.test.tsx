@@ -2,13 +2,19 @@
 import { test, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { WorkView } from "./WorkView.js";
-import { listWork, getWork } from "@/lib/api";
+import { listWork, getWork, setWorkStatus, getAnalytics, getBoard } from "@/lib/api";
 
 class MockEventSource { addEventListener() {} close() {} }
 // @ts-expect-error test stub
 globalThis.EventSource = MockEventSource;
 
-vi.mock("@/lib/api", () => ({ listWork: vi.fn(), getWork: vi.fn() }));
+vi.mock("@/lib/api", () => ({
+  listWork: vi.fn(),
+  getWork: vi.fn(),
+  setWorkStatus: vi.fn(),
+  getAnalytics: vi.fn(),
+  getBoard: vi.fn(),
+}));
 
 test("shows empty-state prompt when there is no work yet", async () => {
   vi.mocked(listWork).mockResolvedValue([]);
@@ -110,4 +116,93 @@ test("does not show a prerequisite banner for research", async () => {
 
   await screen.findByText(/Run competitor research for Example Agency/);
   expect(screen.queryByText(/before Research\./)).toBeNull();
+});
+
+test("clicking Approve calls setWorkStatus with approved", async () => {
+  vi.mocked(listWork).mockResolvedValue([
+    { slug: "q3", title: "Q3 push", created: "2026-03-01", status: "in_review" },
+  ]);
+  vi.mocked(getWork).mockResolvedValue({
+    slug: "q3",
+    title: "Q3 push",
+    created: "2026-03-01",
+    status: "in_review",
+    body: "Q3 body.",
+  });
+  vi.mocked(setWorkStatus).mockResolvedValue(undefined);
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
+
+  const approveButton = await screen.findByText("Approve");
+  fireEvent.click(approveButton);
+
+  expect(setWorkStatus).toHaveBeenCalledWith("example-agency", "campaigns", "q3", "approved");
+});
+
+test("shows an error message when Approve fails", async () => {
+  vi.mocked(listWork).mockResolvedValue([
+    { slug: "q3", title: "Q3 push", created: "2026-03-01", status: "in_review" },
+  ]);
+  vi.mocked(getWork).mockResolvedValue({
+    slug: "q3",
+    title: "Q3 push",
+    created: "2026-03-01",
+    status: "in_review",
+    body: "Q3 body.",
+  });
+  vi.mocked(setWorkStatus).mockRejectedValue(new Error("Request failed: 500"));
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
+
+  const approveButton = await screen.findByText("Approve");
+  fireEvent.click(approveButton);
+
+  expect(await screen.findByText(/Request failed: 500/)).toBeTruthy();
+});
+
+test("archived docs are hidden by default and shown via the Show archived toggle", async () => {
+  vi.mocked(listWork).mockResolvedValue([
+    { slug: "live", title: "Live doc", created: "2026-03-01", status: "in_review" },
+    { slug: "old", title: "Archived doc", created: "2026-01-01", status: "archived" },
+  ]);
+  vi.mocked(getWork).mockImplementation(async (_t, _c, slug) => ({
+    slug,
+    title: slug,
+    created: "2026-01-01",
+    status: slug === "old" ? "archived" : "in_review",
+    body: `${slug} body.`,
+  }));
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
+
+  await screen.findByText("Live doc");
+  expect(screen.queryByText("Archived doc")).toBeNull();
+
+  const toggle = await screen.findByText("Show archived (1)");
+  fireEvent.click(toggle);
+
+  expect(await screen.findByText("Archived doc")).toBeTruthy();
+});
+
+test("renders analytics charts above the doc list for the analytics capability", async () => {
+  vi.mocked(listWork).mockResolvedValue([]);
+  vi.mocked(getAnalytics).mockResolvedValue({ posts: [] });
+  vi.mocked(getBoard).mockResolvedValue({
+    idea: [],
+    drafting: [],
+    in_review: [],
+    approved: [],
+    scheduled: [],
+    posted: [],
+    measured: [],
+  });
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="analytics" />);
+
+  expect(await screen.findByText(/data\/analytics\/imports\/example-agency\//)).toBeTruthy();
+});
+
+test("does not render analytics charts for other capabilities", async () => {
+  vi.mocked(getAnalytics).mockClear();
+  vi.mocked(listWork).mockResolvedValue([]);
+  render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="campaigns" />);
+
+  await screen.findByText(/Plan a campaign for Example Agency/);
+  expect(getAnalytics).not.toHaveBeenCalled();
 });

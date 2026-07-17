@@ -12,6 +12,11 @@ import {
   resolveContentFile,
   resolveWorkTypeDir,
   resolveWorkFile,
+  analyticsRoot,
+  resolveAnalyticsDir,
+  resolveAnalyticsFile,
+  analyticsImportsRoot,
+  resolveAnalyticsImportsDir,
 } from "./setupPaths.js";
 
 test("isValidTenantId accepts kebab ids and rejects unsafe ones", () => {
@@ -88,4 +93,25 @@ test("resolveWorkFile rejects a traversal slug", () => {
 
 test("resolveWorkFile rejects a slug containing a path separator", () => {
   expect(resolveWorkFile("example-agency", "campaigns", "a/b")).toBeNull();
+});
+
+test("resolveAnalyticsDir confines under the analytics root", () => {
+  const dir = resolveAnalyticsDir("example-agency");
+  expect(dir?.startsWith(analyticsRoot)).toBeTruthy();
+  expect(resolveAnalyticsDir("../escape")).toBeNull();
+});
+
+test("resolveAnalyticsFile resolves to posts.json under the tenant analytics dir", () => {
+  const file = resolveAnalyticsFile("example-agency");
+  expect(file).not.toBeNull();
+  expect(file?.endsWith(path.join("analytics", "example-agency", "posts.json"))).toBeTruthy();
+  expect(resolveAnalyticsFile("../escape")).toBeNull();
+});
+
+test("resolveAnalyticsImportsDir confines under the analytics imports root", () => {
+  const dir = resolveAnalyticsImportsDir("example-agency");
+  expect(dir).not.toBeNull();
+  expect(dir?.startsWith(analyticsImportsRoot)).toBeTruthy();
+  expect(dir?.endsWith(path.join("analytics", "imports", "example-agency"))).toBeTruthy();
+  expect(resolveAnalyticsImportsDir("../escape")).toBeNull();
 });
