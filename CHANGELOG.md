@@ -5,6 +5,19 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-07-17
+
+Ideas become reviewable where they live: a review popup on the pipeline board, and X joins the content channels.
+
+### Added
+
+- **Idea review popup.** Clicking a card in the board's Ideas column opens a popup with the item's full angle, pillar and format pills, and its source constraints, with "Move to drafting" (the do-it bucket) and "Open in Composer" actions. Other columns keep their click-through behavior, and drag-and-drop is unchanged.
+- **X as a content channel.** Content items can target `x` alongside linkedin, blog, tiktok, and instagram.
+
+### Fixed
+
+- Failed board state changes (from the popup or drag-and-drop) surface an error instead of failing silently.
+
 ## [0.7.0] - 2026-07-16
 
 Analytics become real: structured per-post captures, LinkedIn export imports, and a charts dashboard. Work docs gain an approve/archive lifecycle.
