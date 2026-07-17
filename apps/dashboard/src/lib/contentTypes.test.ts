@@ -38,6 +38,10 @@ test("validateContentItem rejects malformed input", () => {
   })).toBe(true);
 });
 
+test("validateContentItem accepts channel x", () => {
+  expect(validateContentItem({ ...item, channel: "x" })).toBe(true);
+});
+
 test("validateContentItem accepts an optional string caption", () => {
   expect(validateContentItem({ ...item, caption: "The post body" })).toBe(true);
   expect(validateContentItem({ ...item, caption: undefined })).toBe(true);

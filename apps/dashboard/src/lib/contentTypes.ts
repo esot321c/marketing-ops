@@ -1,4 +1,4 @@
-export type Channel = "linkedin" | "blog" | "tiktok" | "instagram";
+export type Channel = "linkedin" | "blog" | "tiktok" | "instagram" | "x";
 export type Format = "text-post" | "blog-post" | "carousel" | "image-post" | "short-video";
 export type ContentState =
   | "idea" | "drafting" | "in_review" | "approved" | "scheduled" | "posted" | "measured";
@@ -111,7 +111,7 @@ const STATES: ReadonlySet<string> = new Set<ContentState>([
 ]);
 
 const CHANNELS: ReadonlySet<string> = new Set<Channel>([
-  "linkedin", "blog", "tiktok", "instagram",
+  "linkedin", "blog", "tiktok", "instagram", "x",
 ]);
 
 const FORMATS: ReadonlySet<string> = new Set<Format>([

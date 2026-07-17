@@ -6,6 +6,7 @@ import { BOARD_STATES } from "@/lib/contentLibrary";
 import { dropArgs } from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 import { effectiveFormat } from "@/lib/contentTypes";
+import { IdeaReviewPopup } from "./IdeaReviewPopup";
 
 const LABELS: Record<ContentState, string> = {
   idea: "Ideas",
@@ -21,6 +22,8 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
   const fetch = useCallback(() => getBoard(tenant), [tenant]);
   const { data, reload } = useLiveData<Record<ContentState, ContentItem[]>>(fetch, (p) => p.includes(`/content/${tenant}/`));
   const [dragOver, setDragOver] = useState<ContentState | null>(null);
+  const [reviewItem, setReviewItem] = useState<ContentItem | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function handleDrop(target: ContentState, e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -31,8 +34,32 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
     const today = new Date().toISOString().slice(0, 10);
     const args = dropArgs(source, target, today);
     if (!args) return;
-    await postState(tenant, id, args.to, args.date);
-    reload();
+    setActionError(null);
+    try {
+      await postState(tenant, id, args.to, args.date);
+      reload();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function handleCardClick(state: ContentState, item: ContentItem) {
+    if (state === "idea") {
+      setReviewItem(item);
+      return;
+    }
+    onOpen(item.id);
+  }
+
+  async function handleMoveToDrafting(id: string) {
+    setActionError(null);
+    try {
+      await postState(tenant, id, "drafting");
+      setReviewItem(null);
+      reload();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   return (
@@ -40,6 +67,11 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
       <header>
         <h1 className="ws-h1">Pipeline board</h1>
         <p className="ws-sub">Every piece, grouped by where it is in the lifecycle. Drag a card to move it.</p>
+        {actionError && !reviewItem ? (
+          <p style={{ fontSize: 11.5, margin: "8px 0 0", lineHeight: 1.5, color: "#e5484d" }}>
+            Action failed: {actionError}
+          </p>
+        ) : null}
       </header>
 
       {!data ? (
@@ -78,7 +110,7 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                       e.dataTransfer.effectAllowed = "move";
                     }}
                     onDragEnd={() => setDragOver(null)}
-                    onClick={() => onOpen(i.id)}
+                    onClick={() => handleCardClick(state, i)}
                     style={{ padding: 10, marginBottom: 8, borderRadius: 10, cursor: "grab" }}
                   >
                     <div className="ws-ink" style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>{i.title}</div>
@@ -92,6 +124,16 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
           ))}
         </div>
       )}
+
+      {reviewItem ? (
+        <IdeaReviewPopup
+          item={reviewItem}
+          onMoveToDrafting={(id) => void handleMoveToDrafting(id)}
+          onOpenComposer={(id) => { setReviewItem(null); onOpen(id); }}
+          onClose={() => setReviewItem(null)}
+          actionError={actionError}
+        />
+      ) : null}
     </div>
   );
 }
