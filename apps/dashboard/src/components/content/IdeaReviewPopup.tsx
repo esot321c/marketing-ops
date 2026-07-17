@@ -7,11 +7,13 @@ export function IdeaReviewPopup({
   onMoveToDrafting,
   onOpenComposer,
   onClose,
+  actionError = null,
 }: {
   item: ContentItem;
   onMoveToDrafting: (id: string) => void;
   onOpenComposer: (id: string) => void;
   onClose: () => void;
+  actionError?: string | null;
 }) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -93,6 +95,12 @@ export function IdeaReviewPopup({
             Open in Composer
           </button>
         </div>
+
+        {actionError ? (
+          <p style={{ fontSize: 11.5, margin: "12px 0 0", lineHeight: 1.5, color: "#e5484d" }}>
+            Action failed: {actionError}
+          </p>
+        ) : null}
       </div>
     </div>
   );

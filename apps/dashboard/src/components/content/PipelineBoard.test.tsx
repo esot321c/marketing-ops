@@ -93,3 +93,41 @@ test("Move to drafting in the popup issues the state change and closes the popup
   });
   expect(screen.queryByText(ideaItem.angle)).toBeNull();
 });
+
+test("Move to drafting rejection shows the error text and keeps the popup open", async () => {
+  const ideaItem = makeItem("idea-1", "idea", "Idea title");
+  const board = { ...emptyBoard(), idea: [ideaItem] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(postState).mockRejectedValue(new Error("network down"));
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+
+  const card = await screen.findByText("Idea title");
+  fireEvent.click(card);
+  await screen.findByText(ideaItem.angle);
+
+  fireEvent.click(screen.getByText("Move to drafting"));
+
+  expect(await screen.findByText("Action failed: network down")).toBeTruthy();
+  expect(screen.getByText(ideaItem.angle)).toBeTruthy();
+});
+
+test("drag-drop rejection shows the error text", async () => {
+  const draftingItem = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [draftingItem] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(postState).mockRejectedValue(new Error("network down"));
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+
+  await screen.findByText("Drafting title");
+
+  const dataTransfer = {
+    getData: (key: string) =>
+      key === "application/x-item-id" ? "drafting-1" : "drafting",
+  };
+  const dropTarget = screen.getByText("In review").closest("div")!.nextSibling as Element;
+  fireEvent.drop(dropTarget, { dataTransfer });
+
+  expect(await screen.findByText("Action failed: network down")).toBeTruthy();
+});
