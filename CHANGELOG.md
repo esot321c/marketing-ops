@@ -5,6 +5,17 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-17
+
+BREAKING: the data directory is now tenant-first. Everything for a tenant lives under one folder.
+
+### Changed
+
+- **Tenant-first layout.** `data/<tenant>/{setup, work, content, analytics}/...` replaces the type-first layout; LinkedIn export imports move to `data/<tenant>/analytics/imports/`. A tenant is any top-level directory under `data/` containing a `setup/` subdirectory; other top-level folders are ignored.
+- **Shared globals.** Cross-tenant files live in `data/shared/`.
+- **Migration.** Run `node scripts/migrate-tenant-first.mjs` (supports `--dry-run`). It is idempotent, aborts before moving anything on conflicts or reserved/invalid tenant names, reports partial progress if a move fails mid-run, and never touches folders outside the four managed roots. See DATA_CONTRACT.md.
+- All skills, docs, and `data.example/` reflect the new layout.
+
 ## [0.7.1] - 2026-07-17
 
 Ideas become reviewable where they live: a review popup on the pipeline board, and X joins the content channels.
