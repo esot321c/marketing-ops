@@ -2,7 +2,10 @@ import { mkdir, writeFile, rm, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test, expect, beforeEach, afterEach } from "vitest";
-import { migrate } from "../../../../scripts/migrate-tenant-first.mjs";
+import {
+  migrate,
+  MigrationExecutionError,
+} from "../../../../scripts/migrate-tenant-first.mjs";
 
 let tmpRoot: string;
 let dataDir: string;
@@ -314,6 +317,213 @@ test("identical destination content is skipped and reported, not treated as conf
   expect(summary.skipped.length).toBeGreaterThan(0);
   // old setup/example-agency removed since content was identical and now redundant
   expect(await exists(path.join(dataDir, "setup"))).toBe(false);
+  // the destination content survives untouched and re-readable after the skip
+  expect(
+    await readFile(
+      path.join(dataDir, "example-agency", "setup", "voice.md"),
+      "utf8"
+    )
+  ).toBe("# voice\n");
+});
+
+test("a tenant name colliding with a reserved directory aborts pre-flight with nothing moved", async () => {
+  await writeOldLayoutFixture(dataDir);
+
+  // "shared" is reserved: it's the script's own global destination.
+  await mkdir(path.join(dataDir, "setup", "shared"), { recursive: true });
+  await writeFile(path.join(dataDir, "setup", "shared", "voice.md"), "# voice\n");
+
+  const summary = await migrate(dataDir, { dryRun: false });
+
+  expect(summary.aborted).toBe(true);
+  expect(summary.reason).toBe("reserved-name");
+  expect(summary.reservedNames).toContain("shared");
+
+  // nothing moved: old layout paths still intact, including the unrelated tenant
+  expect(
+    await readFile(
+      path.join(dataDir, "work", "example-agency", "campaigns", "q1.md"),
+      "utf8"
+    )
+  ).toBe("# q1 campaign\n");
+  expect(await exists(path.join(dataDir, "example-agency"))).toBe(false);
+  expect(await exists(path.join(dataDir, "shared"))).toBe(false);
+});
+
+test.each(["shared", "tenants", "imports", "brands", "guides", "research", "accounts", "campaigns", "assets", "generated"])(
+  "reserved name '%s' aborts discovery pre-flight",
+  async (reservedName) => {
+    await mkdir(path.join(dataDir, "setup", reservedName), { recursive: true });
+    await writeFile(
+      path.join(dataDir, "setup", reservedName, "voice.md"),
+      "# voice\n"
+    );
+
+    const summary = await migrate(dataDir, { dryRun: false });
+
+    expect(summary.aborted).toBe(true);
+    expect(summary.reason).toBe("reserved-name");
+    expect(summary.reservedNames).toContain(reservedName);
+  }
+);
+
+test("an invalid (non-kebab) tenant name aborts pre-flight with nothing moved", async () => {
+  await writeOldLayoutFixture(dataDir);
+
+  // "Example_Corp" is not lowercase kebab, matching the app's isValidTenantId rule.
+  await mkdir(path.join(dataDir, "setup", "Example_Corp"), { recursive: true });
+  await writeFile(
+    path.join(dataDir, "setup", "Example_Corp", "voice.md"),
+    "# voice\n"
+  );
+
+  const summary = await migrate(dataDir, { dryRun: false });
+
+  expect(summary.aborted).toBe(true);
+  expect(summary.reason).toBe("invalid-name");
+  expect(summary.invalidNames).toContain("Example_Corp");
+
+  // nothing moved
+  expect(
+    await readFile(
+      path.join(dataDir, "work", "example-agency", "campaigns", "q1.md"),
+      "utf8"
+    )
+  ).toBe("# q1 campaign\n");
+  expect(await exists(path.join(dataDir, "example-agency"))).toBe(false);
+});
+
+test("a tenant that exists only under data/analytics/imports/<tenant> is discovered and migrated", async () => {
+  await mkdir(
+    path.join(dataDir, "analytics", "imports", "example-imports-only", "processed"),
+    { recursive: true }
+  );
+  await writeFile(
+    path.join(dataDir, "analytics", "imports", "example-imports-only", "export.xlsx"),
+    "binary"
+  );
+
+  const summary = await migrate(dataDir, { dryRun: false });
+
+  expect(summary.aborted).toBe(false);
+  expect(summary.tenants).toContain("example-imports-only");
+  expect(
+    await readFile(
+      path.join(
+        dataDir,
+        "example-imports-only",
+        "analytics",
+        "imports",
+        "export.xlsx"
+      ),
+      "utf8"
+    )
+  ).toBe("binary");
+  // no setup/work/content ever existed for this tenant
+  expect(await exists(path.join(dataDir, "example-imports-only", "setup"))).toBe(
+    false
+  );
+});
+
+test("a failure mid-execution reports partial progress and rethrows without silently losing state", async () => {
+  await writeOldLayoutFixture(dataDir);
+
+  // Sabotage one of the planned moves so it fails mid-loop. Moves are planned
+  // per-tenant in a fixed candidate order (setup, work, content, analytics,
+  // imports) and tenants are visited in sorted order, so example-agency's
+  // setup move (the first candidate for the first tenant) always executes
+  // before example-personal's moves.
+  //
+  // Block example-personal's setup destination by placing a plain file at
+  // dataDir/example-personal (the parent directory fs.mkdir needs to create
+  // for that move), so its move throws with example-agency's earlier moves
+  // already completed.
+  await writeFile(path.join(dataDir, "example-personal"), "blocking file");
+
+  let caught: unknown;
+  try {
+    await migrate(dataDir, { dryRun: false });
+    throw new Error("expected migrate() to reject");
+  } catch (err) {
+    caught = err;
+  }
+
+  // The thrown error carries a partial-progress report so the caller (the
+  // CLI entrypoint) can print what happened before exiting nonzero, instead
+  // of an unadorned throw with no visibility into what was and wasn't moved.
+  expect(caught).toBeInstanceOf(MigrationExecutionError);
+  const migrationErr = caught as InstanceType<typeof MigrationExecutionError>;
+  expect(migrationErr.partialSummary).toBeTruthy();
+  expect(migrationErr.partialSummary.completed.length).toBeGreaterThan(0);
+  expect(
+    migrationErr.partialSummary.completed.some(
+      (m) => m.tenant === "example-agency"
+    )
+  ).toBe(true);
+  expect(migrationErr.partialSummary.failed).toBeTruthy();
+  expect(migrationErr.partialSummary.failed.move.tenant).toBe(
+    "example-personal"
+  );
+  expect(migrationErr.partialSummary.failed.error).toBeTruthy();
+  expect(migrationErr.partialSummary.notAttempted.length).toBeGreaterThan(0);
+
+  // example-agency's setup move (planned before example-personal's) completed.
+  expect(
+    await readFile(
+      path.join(dataDir, "example-agency", "setup", "voice.md"),
+      "utf8"
+    )
+  ).toBe("# voice\n");
+
+  // example-personal was never migrated: the blocking file is still there
+  // and the old source is untouched.
+  expect(
+    await readFile(path.join(dataDir, "example-personal"), "utf8")
+  ).toBe("blocking file");
+  expect(
+    await readFile(
+      path.join(dataDir, "setup", "example-personal", "voice.md"),
+      "utf8"
+    )
+  ).toBe("# voice personal\n");
+});
+
+test("idempotent re-run after a mid-run failure completes correctly", async () => {
+  await writeOldLayoutFixture(dataDir);
+  await writeFile(path.join(dataDir, "example-personal"), "blocking file");
+
+  await expect(migrate(dataDir, { dryRun: false })).rejects.toThrow();
+
+  // Clear the obstruction, as a human fixing the failure would, then re-run.
+  await rm(path.join(dataDir, "example-personal"), { force: true });
+
+  const summary = await migrate(dataDir, { dryRun: false });
+
+  expect(summary.aborted).toBe(false);
+  expect(summary.conflicts).toEqual([]);
+
+  // Both tenants fully migrated, including the moves that succeeded on the
+  // first (failed) run and those that were retried on the second.
+  expect(
+    await readFile(
+      path.join(dataDir, "example-agency", "setup", "voice.md"),
+      "utf8"
+    )
+  ).toBe("# voice\n");
+  expect(
+    await readFile(
+      path.join(dataDir, "example-personal", "setup", "voice.md"),
+      "utf8"
+    )
+  ).toBe("# voice personal\n");
+  expect(
+    await readFile(
+      path.join(dataDir, "example-personal", "content", "items", "def.json"),
+      "utf8"
+    )
+  ).toBe("{}");
+  expect(await exists(path.join(dataDir, "setup"))).toBe(false);
+  expect(await exists(path.join(dataDir, "content"))).toBe(false);
 });
 
 test("unmanaged top-level dirs are left untouched when no tenants exist", async () => {

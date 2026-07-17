@@ -18,6 +18,34 @@ import { fileURLToPath } from "node:url";
 
 const TYPE_ROOTS = ["setup", "work", "content", "analytics"];
 
+// Top-level directory names under data/ that are reserved for the script's
+// own global destination (shared/) or for other unmanaged/legacy purposes.
+// A discovered tenant name matching one of these would migrate into or
+// collide with that directory (a tenant named "shared" would land in the
+// script's own global destination), so discovery aborts the whole run
+// rather than risk it.
+const RESERVED_NAMES = new Set([
+  "shared",
+  "tenants",
+  "imports",
+  "brands",
+  "guides",
+  "research",
+  "accounts",
+  "campaigns",
+  "assets",
+  "generated",
+]);
+
+// Must match apps/dashboard/src/lib/setupPaths.ts's isValidTenantId (lowercase
+// kebab). Duplicated here because this script is zero-dependency Node and
+// does not import from the dashboard app.
+const TENANT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function isValidTenantId(name) {
+  return TENANT_ID.test(name);
+}
+
 // Global files that move to data/shared/. Keyed by their old location
 // relative to dataDir, valued by their new filename under shared/.
 const GLOBAL_FILES = [
@@ -220,6 +248,21 @@ async function cleanupTypeRoots(dataDir) {
 }
 
 /**
+ * An error thrown when the execute loop fails partway through. Carries a
+ * partialSummary describing exactly what happened so the caller can report
+ * it before exiting nonzero, instead of an unadorned throw with no
+ * visibility into what was and wasn't moved.
+ */
+export class MigrationExecutionError extends Error {
+  constructor(cause, partialSummary) {
+    super(`Migration failed while moving ${partialSummary.failed.move.from}: ${cause.message}`);
+    this.name = "MigrationExecutionError";
+    this.cause = cause;
+    this.partialSummary = partialSummary;
+  }
+}
+
+/**
  * Migrate an old type-first data/ directory to the tenant-first layout.
  *
  * @param {string} dataDir - absolute path to the data directory to migrate.
@@ -228,6 +271,9 @@ async function cleanupTypeRoots(dataDir) {
  *   dataDir: string,
  *   dryRun: boolean,
  *   aborted: boolean,
+ *   reason?: string,
+ *   reservedNames?: string[],
+ *   invalidNames?: string[],
  *   tenants: string[],
  *   moves: Array<{from: string, to: string, kind: string, tenant?: string}>,
  *   skipped: Array<{from: string, to: string, kind: string, tenant?: string}>,
@@ -240,6 +286,47 @@ export async function migrate(dataDir, options = {}) {
   const dryRun = Boolean(options.dryRun);
 
   const tenants = await discoverTenants(dataDir);
+
+  // Pre-flight: reject any discovered tenant name that collides with a
+  // reserved/unmanaged directory, or that doesn't satisfy the app's
+  // tenant-id validity rule. Either case aborts the entire run before
+  // anything is moved: silently skipping an invalid name could strand its
+  // data in the old layout with no clear signal, and a reserved-name
+  // collision could corrupt the script's own global destination.
+  const reservedNames = tenants.filter((name) => RESERVED_NAMES.has(name));
+  if (reservedNames.length > 0) {
+    return {
+      dataDir,
+      dryRun,
+      aborted: true,
+      reason: "reserved-name",
+      reservedNames,
+      tenants,
+      moves: [],
+      skipped: [],
+      conflicts: [],
+      removedDirs: [],
+      remainingDirs: [],
+    };
+  }
+
+  const invalidNames = tenants.filter((name) => !isValidTenantId(name));
+  if (invalidNames.length > 0) {
+    return {
+      dataDir,
+      dryRun,
+      aborted: true,
+      reason: "invalid-name",
+      invalidNames,
+      tenants,
+      moves: [],
+      skipped: [],
+      conflicts: [],
+      removedDirs: [],
+      remainingDirs: [],
+    };
+  }
+
   const allMoves = await planMoves(dataDir, tenants);
   const { toExecute, skipped, conflicts } = await classifyMoves(allMoves);
 
@@ -248,6 +335,7 @@ export async function migrate(dataDir, options = {}) {
       dataDir,
       dryRun,
       aborted: true,
+      reason: "conflict",
       tenants,
       moves: [],
       skipped: [],
@@ -271,8 +359,21 @@ export async function migrate(dataDir, options = {}) {
     };
   }
 
-  for (const move of toExecute) {
-    await executeMove(move);
+  const completed = [];
+  for (let i = 0; i < toExecute.length; i++) {
+    const move = toExecute[i];
+    try {
+      await executeMove(move);
+    } catch (err) {
+      const partialSummary = {
+        completed,
+        failed: { move, error: err },
+        notAttempted: toExecute.slice(i + 1),
+        skipped,
+      };
+      throw new MigrationExecutionError(err, partialSummary);
+    }
+    completed.push(move);
   }
   for (const move of skipped) {
     await removeRedundantSource(move);
@@ -301,10 +402,26 @@ export function printSummary(summary) {
   const lines = [];
 
   if (summary.aborted) {
-    lines.push("Migration aborted: conflicting destinations found (nothing was moved).");
-    lines.push("Conflicts:");
-    for (const c of summary.conflicts) lines.push(formatMove(c));
-    lines.push("Resolve or remove these destinations, then re-run.");
+    if (summary.reason === "reserved-name") {
+      lines.push("Migration aborted: discovered tenant name(s) collide with a reserved directory (nothing was moved).");
+      lines.push("Reserved names found:");
+      for (const n of summary.reservedNames) lines.push(`  ${n}`);
+      lines.push(
+        "These names are reserved for the app's own directories (e.g. data/shared/). Rename the offending tenant's data on disk, then re-run."
+      );
+    } else if (summary.reason === "invalid-name") {
+      lines.push("Migration aborted: discovered tenant name(s) are not valid tenant ids (nothing was moved).");
+      lines.push("Invalid names found:");
+      for (const n of summary.invalidNames) lines.push(`  ${n}`);
+      lines.push(
+        "Tenant ids must be lowercase kebab-case (a-z, 0-9, hyphens). Rename the offending tenant's data on disk, then re-run."
+      );
+    } else {
+      lines.push("Migration aborted: conflicting destinations found (nothing was moved).");
+      lines.push("Conflicts:");
+      for (const c of summary.conflicts) lines.push(formatMove(c));
+      lines.push("Resolve or remove these destinations, then re-run.");
+    }
     console.log(lines.join("\n"));
     return;
   }
@@ -340,6 +457,29 @@ export function printSummary(summary) {
   console.log(lines.join("\n"));
 }
 
+// Reports what happened when the execute loop threw partway through, so a
+// mid-run failure is never a silent, unexplained crash.
+export function printPartialSummary(partialSummary) {
+  const lines = [];
+  lines.push("Migration failed partway through. Partial progress report:");
+
+  lines.push(`Moves completed before the failure (${partialSummary.completed.length}):`);
+  for (const m of partialSummary.completed) lines.push(formatMove(m));
+
+  lines.push("Move in flight that failed:");
+  lines.push(formatMove(partialSummary.failed.move));
+  lines.push(`  error: ${partialSummary.failed.error.message}`);
+
+  lines.push(`Moves not attempted (${partialSummary.notAttempted.length}):`);
+  for (const m of partialSummary.notAttempted) lines.push(formatMove(m));
+
+  lines.push(
+    "Re-running the script is safe: completed moves are already in place and will be skipped or verified, and the failed/not-attempted moves will be retried once the underlying problem is resolved."
+  );
+
+  console.log(lines.join("\n"));
+}
+
 function parseArgs(argv) {
   let dryRun = false;
   let dataDir;
@@ -360,7 +500,17 @@ async function main() {
   const { dryRun, dataDir: dataDirArg } = parseArgs(process.argv.slice(2));
   const dataDir = path.resolve(dataDirArg ?? path.join(process.cwd(), "data"));
 
-  const summary = await migrate(dataDir, { dryRun });
+  let summary;
+  try {
+    summary = await migrate(dataDir, { dryRun });
+  } catch (err) {
+    if (err instanceof MigrationExecutionError) {
+      printPartialSummary(err.partialSummary);
+      process.exitCode = 1;
+      return;
+    }
+    throw err;
+  }
   printSummary(summary);
 
   if (summary.aborted) process.exitCode = 1;

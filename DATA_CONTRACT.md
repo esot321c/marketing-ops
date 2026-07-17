@@ -20,7 +20,9 @@ If you have data in the old layout (`data/setup/<tenant>/...`, `data/work/<tenan
 run `scripts/migrate-tenant-first.mjs` once to move each tenant's files under `data/<tenant>/...`
 and the global registry files under `data/shared/`. The script is idempotent (running it twice is a
 no-op) and refuses to overwrite a destination that already has different content; pass `--dry-run`
-to preview the moves first.
+to preview the moves first. It also aborts pre-flight, moving nothing, if a discovered tenant name
+collides with a reserved directory (`shared`, `tenants`, `imports`, `brands`, `guides`, `research`,
+`accounts`, `campaigns`, `assets`, `generated`) or is not a valid lowercase-kebab tenant id.
 
 ## System Layer
 
