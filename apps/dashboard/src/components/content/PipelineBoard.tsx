@@ -6,6 +6,7 @@ import { BOARD_STATES } from "@/lib/contentLibrary";
 import { dropArgs } from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 import { effectiveFormat } from "@/lib/contentTypes";
+import { IdeaReviewPopup } from "./IdeaReviewPopup";
 
 const LABELS: Record<ContentState, string> = {
   idea: "Ideas",
@@ -21,6 +22,7 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
   const fetch = useCallback(() => getBoard(tenant), [tenant]);
   const { data, reload } = useLiveData<Record<ContentState, ContentItem[]>>(fetch, (p) => p.includes(`/content/${tenant}/`));
   const [dragOver, setDragOver] = useState<ContentState | null>(null);
+  const [reviewItem, setReviewItem] = useState<ContentItem | null>(null);
 
   async function handleDrop(target: ContentState, e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -32,6 +34,20 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
     const args = dropArgs(source, target, today);
     if (!args) return;
     await postState(tenant, id, args.to, args.date);
+    reload();
+  }
+
+  function handleCardClick(state: ContentState, item: ContentItem) {
+    if (state === "idea") {
+      setReviewItem(item);
+      return;
+    }
+    onOpen(item.id);
+  }
+
+  async function handleMoveToDrafting(id: string) {
+    await postState(tenant, id, "drafting");
+    setReviewItem(null);
     reload();
   }
 
@@ -78,7 +94,7 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                       e.dataTransfer.effectAllowed = "move";
                     }}
                     onDragEnd={() => setDragOver(null)}
-                    onClick={() => onOpen(i.id)}
+                    onClick={() => handleCardClick(state, i)}
                     style={{ padding: 10, marginBottom: 8, borderRadius: 10, cursor: "grab" }}
                   >
                     <div className="ws-ink" style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>{i.title}</div>
@@ -92,6 +108,15 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
           ))}
         </div>
       )}
+
+      {reviewItem ? (
+        <IdeaReviewPopup
+          item={reviewItem}
+          onMoveToDrafting={(id) => void handleMoveToDrafting(id)}
+          onOpenComposer={(id) => { setReviewItem(null); onOpen(id); }}
+          onClose={() => setReviewItem(null)}
+        />
+      ) : null}
     </div>
   );
 }
