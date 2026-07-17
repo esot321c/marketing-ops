@@ -5,6 +5,24 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-07-16
+
+Analytics become real: structured per-post captures, LinkedIn export imports, and a charts dashboard. Work docs gain an approve/archive lifecycle.
+
+### Added
+
+- **Analytics store.** Per-tenant `data/analytics/<tenant>/posts.json` holds every post's capture history (impressions, reach, engagement breakdown, profile views, follows, viewer demographics). Writes are atomic and serialized per tenant, and re-imported duplicates dedupe.
+- **LinkedIn export import.** Drop LinkedIn single-post XLSX exports into `data/analytics/imports/<tenant>/` and the dashboard server parses them into captures automatically, moving files to `processed/` (or `failed/` when unreadable). The parser reads row labels rather than positions and recognizes ugcPost, activity, and share URN types.
+- **Analytics charts.** The analytics page renders impressions over time per post, a sortable per-post table, a conversion funnel (impressions through follows), a format comparison of medians, and an audience panel aggregating viewer demographics. Titles resolve from linked pipeline items, tooltips and axes are themed and readable, and posts carry a channel badge.
+- **Work doc lifecycle.** Approve, archive, and restore work docs from the dashboard; the status writes back into the file's frontmatter, and archived docs leave the default list and sidebar counts.
+- **Effective format pills.** Content items display what actually ships: a text post with an attached image reads image-post, a carousel reads carousel.
+- **Recording rule.** Manually shared analytics are recorded into the structured store, with the markdown log kept as the narrative layer (documented in CLAUDE.md and the data contract).
+
+### Fixed
+
+- An item's angle renders as a readable text block in the Composer and Today views instead of being crammed into a pill chip.
+- Failed status actions in the work view surface an error instead of failing silently.
+
 ## [0.6.0] - 2026-07-15
 
 Carousel slides become images: structured slide copy, HTML-rendered infographics, and a slide-image workflow in the Composer.
