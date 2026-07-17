@@ -57,17 +57,17 @@ When the user asks for marketing work matching one of these phrases, run the ass
 
 | When the user asks | Run | Save to |
 |---|---|---|
-| `Plan a campaign for <Tenant Name>` | the campaign operating sequence | `data/work/<tenant>/campaigns/<slug>.md` |
-| `Draft an SEO and content strategy for <Tenant Name>` | content-pipeline (with market-research input) | `data/work/<tenant>/strategy/<slug>.md` |
-| `Research keywords for <Tenant Name>` | market-research | `data/work/<tenant>/keywords/<slug>.md` |
-| `Run competitor research for <Tenant Name>` | market-research | `data/work/<tenant>/research/<slug>.md` |
-| `Review analytics for <Tenant Name>` | analytics review then next actions | `data/work/<tenant>/analytics/<slug>.md` |
+| `Plan a campaign for <Tenant Name>` | the campaign operating sequence | `data/<tenant>/work/campaigns/<slug>.md` |
+| `Draft an SEO and content strategy for <Tenant Name>` | content-pipeline (with market-research input) | `data/<tenant>/work/strategy/<slug>.md` |
+| `Research keywords for <Tenant Name>` | market-research | `data/<tenant>/work/keywords/<slug>.md` |
+| `Run competitor research for <Tenant Name>` | market-research | `data/<tenant>/work/research/<slug>.md` |
+| `Review analytics for <Tenant Name>` | analytics review then next actions | `data/<tenant>/work/analytics/<slug>.md` |
 
 Each saved file starts with frontmatter fields `title`, `created` (ISO date), and `status` (`draft`, `active`, or `done`), followed by the body.
 
 ### Next steps after Init
 
-Once a tenant is `readyToPost`, run the prep capabilities in order: competitor research, keyword research, content and SEO strategy, then a first campaign. Analytics follows once there are live posts. Surface the outstanding prep to the user proactively and when asked what is next; do not leave it for the user to find. Save each output to `data/work/<tenant>/<type>/<slug>.md` with the `title`, `created`, and `status` frontmatter.
+Once a tenant is `readyToPost`, run the prep capabilities in order: competitor research, keyword research, content and SEO strategy, then a first campaign. Analytics follows once there are live posts. Surface the outstanding prep to the user proactively and when asked what is next; do not leave it for the user to find. Save each output to `data/<tenant>/work/<type>/<slug>.md` with the `title`, `created`, and `status` frontmatter.
 
 ## Human Review
 

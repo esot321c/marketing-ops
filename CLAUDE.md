@@ -38,26 +38,26 @@ CHANGELOG, releases, PRs, tags, commit messages):
 ## Recording analytics
 
 Post analytics arrive two ways and BOTH must land in the structured store
-`data/analytics/<tenant>/posts.json`, which feeds the dashboard's analytics charts:
+`data/<tenant>/analytics/posts.json`, which feeds the dashboard's analytics charts:
 
 - Exported files (for example LinkedIn XLSX exports) dropped into
-  `data/analytics/imports/<tenant>/` import automatically while the dashboard server runs.
+  `data/<tenant>/analytics/imports/` import automatically while the dashboard server runs.
 - Numbers the user pastes or types into chat: the agent appends them to `posts.json` as a
   capture with `source: "manual"` on the matching post record (match by urn or postUrl when
   known, otherwise a stable slug id), never fabricating fields the paste does not contain
   (absent numbers are null). Link the post to its content item via `itemId` when one exists.
 
-The markdown log under `data/work/<tenant>/analytics/` stays the narrative layer
+The markdown log under `data/<tenant>/work/analytics/` stays the narrative layer
 (observations, hypotheses, capture schedules); it is not the database. Record numbers in
 `posts.json` first, then update the narrative log.
 
 ## Surfacing capabilities
 
-When the user asks for a campaign, an SEO or content strategy, keyword research, competitor research, or an analytics review, save the result to `data/work/<tenant>/<type>/<slug>.md` with `title`, `created`, and `status` frontmatter so the dashboard shows it. The five types are `campaigns`, `strategy`, `keywords`, `research`, and `analytics`. When a workspace is ready, proactively tell the user these capabilities exist and how to ask, for example by pointing them at the Ask panel in the dashboard.
+When the user asks for a campaign, an SEO or content strategy, keyword research, competitor research, or an analytics review, save the result to `data/<tenant>/work/<type>/<slug>.md` with `title`, `created`, and `status` frontmatter so the dashboard shows it. The five types are `campaigns`, `strategy`, `keywords`, `research`, and `analytics`. When a workspace is ready, proactively tell the user these capabilities exist and how to ask, for example by pointing them at the Ask panel in the dashboard.
 
 ### Next steps after Init
 
-After Init reaches `readyToPost`, the prep work is not finished. The agent's next job is to run competitor research, research keywords, draft a first content and SEO strategy, and plan a first campaign, in that order. Analytics comes later, once posts are live. Do not wait for the user to ask. When Init completes, and whenever the user asks what is next, tell them which prep pieces are still outstanding and offer to do them. Ask any questions you need, then save each result to `data/work/<tenant>/<type>/` so the dashboard shows it. Treat the four prep pieces (research, keywords, strategy, campaigns) as the agent's outstanding work, not the user's. The user finished Init; surfacing and doing the prep is on the agent.
+After Init reaches `readyToPost`, the prep work is not finished. The agent's next job is to run competitor research, research keywords, draft a first content and SEO strategy, and plan a first campaign, in that order. Analytics comes later, once posts are live. Do not wait for the user to ask. When Init completes, and whenever the user asks what is next, tell them which prep pieces are still outstanding and offer to do them. Ask any questions you need, then save each result to `data/<tenant>/work/<type>/` so the dashboard shows it. Treat the four prep pieces (research, keywords, strategy, campaigns) as the agent's outstanding work, not the user's. The user finished Init; surfacing and doing the prep is on the agent.
 
 ## Base writing rules: always on, everywhere
 

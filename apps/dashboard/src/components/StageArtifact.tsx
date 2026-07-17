@@ -11,7 +11,7 @@ interface StageArtifactProps {
 
 export function StageArtifact({ tenant, stage }: StageArtifactProps) {
   const fetcher = useCallback(() => getStageArtifact(tenant, stage), [tenant, stage]);
-  const shouldRefetch = useCallback((path: string) => path.startsWith(`data/setup/${tenant}/`), [tenant]);
+  const shouldRefetch = useCallback((path: string) => path.startsWith(`data/${tenant}/setup/`), [tenant]);
   const { data } = useLiveData<Artifact>(fetcher, shouldRefetch);
 
   if (!data || data.kind === "none" || data.kind === "design-system") return null;

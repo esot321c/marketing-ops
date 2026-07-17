@@ -280,7 +280,7 @@ export function AnalyticsCharts({ tenant }: { tenant: string }) {
         <div className="ws-label">Analytics</div>
         <p style={{ fontSize: 13, margin: 0 }}>
           No analytics captured yet. Drop LinkedIn post exports into{" "}
-          <code className="ws-mono">{`data/analytics/imports/${tenant}/`}</code> to populate the charts.
+          <code className="ws-mono">{`data/${tenant}/analytics/imports/`}</code> to populate the charts.
         </p>
       </div>
     );

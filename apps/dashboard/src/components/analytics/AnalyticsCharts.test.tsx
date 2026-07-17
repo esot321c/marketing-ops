@@ -58,7 +58,7 @@ test("shows the empty state pointing at the imports folder when there are no pos
   render(<AnalyticsCharts tenant="example-agency" />);
 
   expect(
-    await screen.findByText(/data\/analytics\/imports\/example-agency\//),
+    await screen.findByText(/data\/example-agency\/analytics\/imports\//),
   ).toBeTruthy();
 });
 

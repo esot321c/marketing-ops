@@ -195,7 +195,7 @@ test("renders analytics charts above the doc list for the analytics capability",
   });
   render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="analytics" />);
 
-  expect(await screen.findByText(/data\/analytics\/imports\/example-agency\//)).toBeTruthy();
+  expect(await screen.findByText(/data\/example-agency\/analytics\/imports\//)).toBeTruthy();
 });
 
 test("does not render analytics charts for other capabilities", async () => {
