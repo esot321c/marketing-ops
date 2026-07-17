@@ -32,7 +32,7 @@ export function listTenantDirs(): string[] {
     try {
       if (statSync(setupDir).isDirectory()) out.push(name);
     } catch {
-      // no setup/ subdir — not a tenant
+      // no setup/ subdir, so not a tenant
     }
   }
   return out;

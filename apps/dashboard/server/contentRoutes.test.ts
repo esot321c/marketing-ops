@@ -9,7 +9,7 @@ const app = new Hono();
 registerRoutes(app);
 const dir = resolveContentDir("example-agency")!;
 // tenantExists() reads data/tenants/*.json (via listTenants), not the
-// tenant's setup/ or content/ dir — example-agency isn't registered locally,
+// tenant's setup/ or content/ dir; example-agency isn't registered locally,
 // so register it here.
 const tenantsRoot = path.resolve(process.cwd(), "..", "..", "data", "tenants");
 const tenantFile = path.join(tenantsRoot, "example-agency.json");

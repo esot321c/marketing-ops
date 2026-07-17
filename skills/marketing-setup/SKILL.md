@@ -39,7 +39,7 @@ Do not skip to posting until steps 1-5 are complete or explicitly waived by the 
 
 A fresh clone ships with **no private workspace folders** — the repo only contains the app, skills, templates, and anonymous examples under `data.example/`. On first init, create the user's local, gitignored working folders (they never get committed):
 
-- `data/` — the live workspace the app reads and writes. Seed it by copying the shape of `data.example/` (tenant-first folders, plus tenants, accounts, guides, research, calendar). Per-tenant init state lives at `data/<tenant>/setup/init.json`.
+- `data/`: the live workspace the app reads and writes. Seed it by copying the shape of `data.example/` (tenant-first folders, plus tenants, accounts, guides, research, calendar). Per-tenant init state lives at `data/<tenant>/setup/init.json`.
 - `strategy/` — optional. Long-form working strategy documents the user maintains by hand (positioning, brand plans, content calendars). One markdown file per topic.
 - `docs/` — optional. Architecture notes, design specs, and implementation plans for the user's own workspace.
 
@@ -121,7 +121,7 @@ State is persisted at `data/<tenant>/setup/init.json`.
 
 **Input artifact:** Approved intake (stage 1), user-supplied audience notes.
 
-**Agent writes:** `data/<tenant>/setup/icp.md` — Ideal Customer Profile covering job titles, industries, pain points, goals, objections, and where the audience spends time online.
+**Agent writes:** `data/<tenant>/setup/icp.md`: Ideal Customer Profile covering job titles, industries, pain points, goals, objections, and where the audience spends time online.
 
 **Review gate:** User reviews the ICP document and approves in the wizard.
 
@@ -137,7 +137,7 @@ State is persisted at `data/<tenant>/setup/init.json`.
 
 **Input artifact:** Approved ICP (stage 2), intake notes.
 
-**Agent writes:** `data/<tenant>/setup/vertical.md` — vertical/niche definition: the specific market category, positioning statement, key proof points, and differentiation from adjacent verticals.
+**Agent writes:** `data/<tenant>/setup/vertical.md`: vertical/niche definition: the specific market category, positioning statement, key proof points, and differentiation from adjacent verticals.
 
 **Review gate:** User reviews the vertical definition and approves in the wizard.
 
@@ -169,7 +169,7 @@ State is persisted at `data/<tenant>/setup/init.json`.
 
 **Input artifact:** Approved intake (stage 1), approved ICP (stage 2), approved vertical (stage 3), approved competitor research (stage 4), existing brand assets in `data/<tenant>/setup/assets/`.
 
-**Agent writes:** The tenant's design system as **user-owned data** at `data/<tenant>/setup/design-system/` — brand tokens (`tokens.json`) and `@dsCard` HTML previews under `previews/`. The reusable, token-driven components live in the app (`apps/dashboard/src/design-system/`, system layer) and render any tenant's tokens; only the tenant's tokens and previews are written here. The agent uses the **frontend-design** skill to design the palette/type and author the previews with distinctive, production-grade styling. After authoring, the agent runs `/design-sync` to sync the `@dsCard` preview files (from `data/<tenant>/setup/design-system/previews/`) to a claude.ai/design Design System project for visual review.
+**Agent writes:** The tenant's design system as **user-owned data** at `data/<tenant>/setup/design-system/`: brand tokens (`tokens.json`) and `@dsCard` HTML previews under `previews/`. The reusable, token-driven components live in the app (`apps/dashboard/src/design-system/`, system layer) and render any tenant's tokens; only the tenant's tokens and previews are written here. The agent uses the **frontend-design** skill to design the palette/type and author the previews with distinctive, production-grade styling. After authoring, the agent runs `/design-sync` to sync the `@dsCard` preview files (from `data/<tenant>/setup/design-system/previews/`) to a claude.ai/design Design System project for visual review.
 
 **Design variation (do not generate cookie-cutter re-skins).** The `frontend-design` skill bans predictable, repeated layouts and converging on the same patterns. Enforce it here, because the default failure mode is theming one shared template across every tenant:
 
@@ -193,7 +193,7 @@ State is persisted at `data/<tenant>/setup/init.json`.
 
 **Input artifact:** Approved intake (stage 1), approved ICP (stage 2), approved vertical (stage 3), approved competitor research (stage 4), approved design system (stage 5), user-supplied voice notes and reference examples.
 
-**Agent writes:** `data/<tenant>/setup/voice.md` — brand voice guide covering tone, vocabulary, sentence rhythm, what to avoid, and 3–5 example posts demonstrating the voice in practice.
+**Agent writes:** `data/<tenant>/setup/voice.md`: brand voice guide covering tone, vocabulary, sentence rhythm, what to avoid, and 3–5 example posts demonstrating the voice in practice.
 
 The voice guide **inherits the shared `writing-rules.md`** (in this skill folder) — those rules are universal across brands and do not get rewritten per tenant. `voice.md` adds only what is brand-specific: the **person** (a personal brand uses "I", an agency/company uses "we", a product/SaaS uses "you/your"), the tone and vocabulary, the content pillars, and the example posts. Because voice now follows the strategy stages, the tone, vocabulary, and content pillars are derived from the approved ICP, vertical, and competitor research: the pillars must speak to the ICP's buyer rather than a broader audience. Every example post must pass the shared rules' self-check.
 
@@ -211,7 +211,7 @@ The voice guide **inherits the shared `writing-rules.md`** (in this skill folder
 
 **Input artifact:** All approved prior stages (intake, ICP, vertical, competitor research, design system, voice).
 
-**Agent writes:** `data/<tenant>/setup/profile-linkedin.md` (and equivalents for other channels) — a complete, copy-paste-ready profile spec covering banner design brief, headline, tagline, about section, featured section copy, and an apply checklist. State is tracked in `data/<tenant>/setup/profile-linkedin.json` via the `/api/profiles/<tenant>/<channel>/state` route.
+**Agent writes:** `data/<tenant>/setup/profile-linkedin.md` (and equivalents for other channels): a complete, copy-paste-ready profile spec covering banner design brief, headline, tagline, about section, featured section copy, and an apply checklist. State is tracked in `data/<tenant>/setup/profile-linkedin.json` via the `/api/profiles/<tenant>/<channel>/state` route.
 
 **Review gate:** User reviews the drafted profile sections and approves in the wizard (`approved` state).
 

@@ -9,10 +9,10 @@ You produce and refine content for a tenant's content motion. The dashboard writ
 `data/<tenant>/content/`; you read it, act, and write results back. Files are the source of truth.
 
 ## Inputs you read
-- `data/<tenant>/content/requests/*.json` with `status: "pending"` — batches to fulfil.
-- `data/<tenant>/content/items/*.json` — items; those in `in_review` with a new last `refineLog`
+- `data/<tenant>/content/requests/*.json` with `status: "pending"`: batches to fulfil.
+- `data/<tenant>/content/items/*.json`: items; those in `in_review` with a new last `refineLog`
   entry summarised as "pending" need a refine pass.
-- `data/<tenant>/content/cadence.json` — pillars and weekly targets.
+- `data/<tenant>/content/cadence.json`: pillars and weekly targets.
 - Init artifacts under `data/<tenant>/setup/`: `voice.md`, `icp.md`, `vertical.md`,
   `competitor-research.md`, and `design-system/tokens.json`.
 - The shared rules in `skills/marketing-setup/writing-rules.md`. Apply them to every piece of copy.
