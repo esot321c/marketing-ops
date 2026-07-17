@@ -2,7 +2,7 @@ import { mkdir, readFile, readdir, rename, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseSinglePostWorkbook } from "./linkedinXlsx.js";
 import { appendCapture } from "./analyticsStore.js";
-import { analyticsImportsRoot, resolveAnalyticsImportsDir, resolveContentDir } from "../src/lib/setupPaths.js";
+import { resolveAnalyticsImportsDir, resolveContentDir } from "../src/lib/setupPaths.js";
 import type { AnalyticsCapture, AnalyticsPost } from "../src/lib/analyticsTypes.js";
 
 function slugify(value: string): string {
@@ -112,12 +112,19 @@ export async function importXlsxFile(
   }
 }
 
-export function watchImports(registerWatcher: (dir: string, onFile: (path: string) => void) => void): void {
-  registerWatcher(analyticsImportsRoot, (filePath: string) => {
-    const rel = path.relative(analyticsImportsRoot, filePath);
+// Registers a watcher on a single tenant's analytics/imports dir. Each tenant
+// has its own imports root now (data/<tenant>/analytics/imports), so there is
+// no shared root to derive the tenant from a relative path; the caller passes
+// the tenant explicitly.
+export function watchTenantImports(
+  tenant: string,
+  registerWatcher: (dir: string, onFile: (path: string) => void) => void
+): void {
+  const dir = resolveAnalyticsImportsDir(tenant);
+  if (!dir) return;
+  registerWatcher(dir, (filePath: string) => {
+    const rel = path.relative(dir, filePath);
     const segments = rel.split(path.sep);
-    const tenant = segments[0];
-    if (!tenant) return;
     if (segments.includes("processed") || segments.includes("failed")) return;
     if (!filePath.toLowerCase().endsWith(".xlsx")) return;
     void importXlsxFile(tenant, filePath).catch((err) => {

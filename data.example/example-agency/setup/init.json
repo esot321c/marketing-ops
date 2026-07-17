@@ -1,7 +1,7 @@
 {
   "tenantId": "example-agency",
   "stages": {
-    "import-intake": { "status": "approved", "artifactPath": "data/setup/example-agency/intake.md", "approvedAt": "2026-01-01T09:00:00Z" },
+    "import-intake": { "status": "approved", "artifactPath": "data/example-agency/setup/intake.md", "approvedAt": "2026-01-01T09:00:00Z" },
     "icp": { "status": "in-progress", "artifactPath": null, "approvedAt": null },
     "vertical": { "status": "not-started", "artifactPath": null, "approvedAt": null },
     "competitor-research": { "status": "not-started", "artifactPath": null, "approvedAt": null },

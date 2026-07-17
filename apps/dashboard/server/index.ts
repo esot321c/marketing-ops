@@ -8,8 +8,8 @@ import { addClient, removeClient } from "./sse.js";
 import { startWatcher } from "./watcher.js";
 import { registerRoutes } from "./routes.js";
 import { registerWorkRoutes } from "./workRoutes.js";
-import { watchImports } from "./analyticsImport.js";
-import { analyticsImportsRoot } from "../src/lib/setupPaths.js";
+import { watchTenantImports } from "./analyticsImport.js";
+import { dataRoot, listTenantDirs, resolveAnalyticsImportsDir } from "../src/lib/setupPaths.js";
 
 const app = new Hono();
 registerRoutes(app);
@@ -36,18 +36,49 @@ if (process.env.NODE_ENV === "production") {
 
 startWatcher();
 
-async function startAnalyticsImportWatcher() {
-  await mkdir(analyticsImportsRoot, { recursive: true });
-  watchImports((dir, onFile) => {
-    const watcher = chokidar.watch(dir, {
-      ignoreInitial: false,
-      depth: 1,
-      awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
+// Each tenant has its own analytics/imports dir (data/<tenant>/analytics/imports),
+// so there is no single shared root to watch at boot. We watch each known
+// tenant's imports dir directly, and separately watch data/ (one level deep,
+// directories only) so a tenant created after boot gets its own imports
+// watcher registered without a restart.
+const watchedTenants = new Set<string>();
+
+function watchTenant(tenant: string): void {
+  if (watchedTenants.has(tenant)) return;
+  const importsDir = resolveAnalyticsImportsDir(tenant);
+  if (!importsDir) return;
+  watchedTenants.add(tenant);
+  void mkdir(importsDir, { recursive: true }).then(() => {
+    watchTenantImports(tenant, (dir, onFile) => {
+      const watcher = chokidar.watch(dir, {
+        ignoreInitial: false,
+        depth: 1,
+        awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
+      });
+      watcher.on("add", onFile);
     });
-    watcher.on("add", onFile);
   });
 }
-void startAnalyticsImportWatcher();
+
+async function startAnalyticsImportWatchers() {
+  for (const tenant of listTenantDirs()) watchTenant(tenant);
+
+  // Re-scan for new tenants when a top-level tenant dir, or its setup/
+  // subdirectory, appears under data/. depth: 1 (rather than 0) is needed
+  // because a tenant is only discoverable once its setup/ subdir exists, and
+  // that subdir can be created in the same recursive mkdir as the tenant
+  // dir itself, racing a depth-0 addDir event on the tenant dir alone.
+  const tenantDiscoveryWatcher = chokidar.watch(dataRoot, {
+    ignoreInitial: true,
+    depth: 1,
+    awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
+  });
+  tenantDiscoveryWatcher.on("addDir", (dirPath: string) => {
+    if (dirPath === dataRoot) return;
+    for (const tenant of listTenantDirs()) watchTenant(tenant);
+  });
+}
+void startAnalyticsImportWatchers();
 
 serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 8787 }, (info) =>
   console.log(`API on http://127.0.0.1:${info.port}`)

@@ -110,7 +110,7 @@ export function IntakeForm({ tenant, onSaved }: IntakeFormProps) {
           </ul>
         ) : null}
         <p className="ws-slate" style={{ fontSize: 11, margin: 0 }}>
-          Saved to <code className="ws-mono">data/setup/{tenant}/assets/</code>
+          Saved to <code className="ws-mono">data/{tenant}/setup/assets/</code>
         </p>
       </div>
 

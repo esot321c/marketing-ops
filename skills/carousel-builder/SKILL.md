@@ -32,12 +32,12 @@ typographic slides, because generated images garble text and drift off-brand.
 
 1. Build one HTML file with a 1080x1080 `.slide` section per slide, styled from
    `design-system/tokens.json` (paper, ink, accent, display and body fonts). Save it to
-   `data/content/<tenant>/renders/<item>/slides.html` so it can be edited and re-rendered.
+   `data/<tenant>/content/renders/<item>/slides.html` so it can be edited and re-rendered.
 2. Give each slide a real infographic layout: bar charts sized so the bars are proportional to
    their values, checklists, comparison panels, numbered cards. Load brand fonts and wait for
    `document.fonts.ready` before capturing.
 3. Serve the folder locally and screenshot each `.slide` element at 1080x1080 with Playwright,
-   saving as `slide-NN.png` (1-based, zero-padded) into `data/content/<tenant>/assets/<item>/`,
+   saving as `slide-NN.png` (1-based, zero-padded) into `data/<tenant>/content/assets/<item>/`,
    which is where the dashboard's slide panel reads images from.
 4. Export the deck as a multi-page PDF, because LinkedIn uploads carousels as PDF documents. Add
    `@page { size: 1080px 1080px; margin: 0; }` and a print rule giving each `.slide` a

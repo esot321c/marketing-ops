@@ -1,8 +1,13 @@
+import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { isCapabilityId } from "./capabilities.js";
 
+// Tenant-first layout: data/<tenant>/{setup,work,content,analytics}/...
 // data/ lives two levels up from the dashboard app cwd (matches researchAssets.mjs).
-export const setupRoot = path.resolve(process.cwd(), "..", "..", "data", "setup");
+export const dataRoot = path.resolve(process.cwd(), "..", "..", "data");
+
+// Global, non-tenant files (registries, cross-tenant config) live here.
+export const sharedRoot = path.join(dataRoot, "shared");
 
 const TENANT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -10,12 +15,41 @@ export function isValidTenantId(tenantId: unknown): tenantId is string {
   return typeof tenantId === "string" && TENANT_ID.test(tenantId);
 }
 
-export function resolveTenantSetupDir(tenantId: string): string | null {
+// A tenant is any top-level directory under data/ containing a setup/
+// subdirectory. Everything else at the top level (data/shared, legacy
+// personal folders) is ignored by discovery.
+export function listTenantDirs(): string[] {
+  let entries: string[];
+  try {
+    entries = readdirSync(dataRoot);
+  } catch {
+    return [];
+  }
+  const out: string[] = [];
+  for (const name of entries) {
+    if (!isValidTenantId(name)) continue;
+    const setupDir = path.join(dataRoot, name, "setup");
+    try {
+      if (statSync(setupDir).isDirectory()) out.push(name);
+    } catch {
+      // no setup/ subdir, so not a tenant
+    }
+  }
+  return out;
+}
+
+function resolveTenantRoot(tenantId: string): string | null {
   if (!isValidTenantId(tenantId)) return null;
-  const resolved = path.resolve(setupRoot, tenantId);
-  if (resolved !== path.join(setupRoot, tenantId)) return null;
-  if (!resolved.startsWith(setupRoot + path.sep)) return null;
+  const resolved = path.resolve(dataRoot, tenantId);
+  if (resolved !== path.join(dataRoot, tenantId)) return null;
+  if (!resolved.startsWith(dataRoot + path.sep)) return null;
   return resolved;
+}
+
+export function resolveTenantSetupDir(tenantId: string): string | null {
+  const tenantRoot = resolveTenantRoot(tenantId);
+  if (!tenantRoot) return null;
+  return path.join(tenantRoot, "setup");
 }
 
 export function resolveSetupAssetPath(tenantId: string, filename: string): string | null {
@@ -53,7 +87,7 @@ export function resolveStageArtifactPath(tenantId: string, stage: string): strin
 export function stageArtifactRelPath(tenantId: string, stage: string): string | null {
   const file = STAGE_ARTIFACT_FILE[stage];
   if (!isValidTenantId(tenantId) || !file) return null;
-  return `data/setup/${tenantId}/${file}`;
+  return `data/${tenantId}/setup/${file}`;
 }
 
 export function resolveDesignSystemDir(tenantId: string): string | null {
@@ -75,9 +109,6 @@ export function resolveDesignPreviewPath(tenantId: string, filename: string): st
   return resolved;
 }
 
-// data/content lives alongside data/setup.
-export const contentRoot = path.resolve(process.cwd(), "..", "..", "data", "content");
-
 function isSafeSegment(name: unknown): name is string {
   return (
     typeof name === "string" &&
@@ -89,11 +120,9 @@ function isSafeSegment(name: unknown): name is string {
 }
 
 export function resolveContentDir(tenantId: string): string | null {
-  if (!isValidTenantId(tenantId)) return null;
-  const resolved = path.resolve(contentRoot, tenantId);
-  if (resolved !== path.join(contentRoot, tenantId)) return null;
-  if (!resolved.startsWith(contentRoot + path.sep)) return null;
-  return resolved;
+  const tenantRoot = resolveTenantRoot(tenantId);
+  if (!tenantRoot) return null;
+  return path.join(tenantRoot, "content");
 }
 
 export function resolveContentItemPath(tenantId: string, id: string): string | null {
@@ -136,16 +165,12 @@ export function resolveContentFile(tenantId: string, name: string): string | nul
   return path.join(dir, name);
 }
 
-// data/work lives alongside data/content and data/setup.
-export const workRoot = path.resolve(process.cwd(), "..", "..", "data", "work");
-
 export function resolveWorkTypeDir(tenantId: string, type: string): string | null {
-  if (!isValidTenantId(tenantId) || !isCapabilityId(type)) return null;
-  const tenantDir = path.resolve(workRoot, tenantId);
-  if (tenantDir !== path.join(workRoot, tenantId)) return null;
-  if (!tenantDir.startsWith(workRoot + path.sep)) return null;
-  const resolved = path.resolve(tenantDir, type);
-  return resolved.startsWith(tenantDir + path.sep) ? resolved : null;
+  const tenantRoot = resolveTenantRoot(tenantId);
+  if (!tenantRoot || !isCapabilityId(type)) return null;
+  const workDir = path.join(tenantRoot, "work");
+  const resolved = path.resolve(workDir, type);
+  return resolved.startsWith(workDir + path.sep) ? resolved : null;
 }
 
 export function resolveWorkFile(tenantId: string, type: string, slug: string): string | null {
@@ -155,15 +180,10 @@ export function resolveWorkFile(tenantId: string, type: string, slug: string): s
   return resolved.startsWith(dir + path.sep) ? resolved : null;
 }
 
-// data/analytics lives alongside data/content, data/setup, and data/work.
-export const analyticsRoot = path.resolve(process.cwd(), "..", "..", "data", "analytics");
-
 export function resolveAnalyticsDir(tenantId: string): string | null {
-  if (!isValidTenantId(tenantId)) return null;
-  const resolved = path.resolve(analyticsRoot, tenantId);
-  if (resolved !== path.join(analyticsRoot, tenantId)) return null;
-  if (!resolved.startsWith(analyticsRoot + path.sep)) return null;
-  return resolved;
+  const tenantRoot = resolveTenantRoot(tenantId);
+  if (!tenantRoot) return null;
+  return path.join(tenantRoot, "analytics");
 }
 
 export function resolveAnalyticsFile(tenantId: string): string | null {
@@ -172,14 +192,10 @@ export function resolveAnalyticsFile(tenantId: string): string | null {
   return path.join(dir, "posts.json");
 }
 
-// data/analytics/imports/<tenant>/ holds dropped LinkedIn XLSX exports, with
+// data/<tenant>/analytics/imports/ holds dropped LinkedIn XLSX exports, with
 // processed/ and failed/ subfolders created on demand by the importer.
-export const analyticsImportsRoot = path.join(analyticsRoot, "imports");
-
 export function resolveAnalyticsImportsDir(tenantId: string): string | null {
-  if (!isValidTenantId(tenantId)) return null;
-  const resolved = path.resolve(analyticsImportsRoot, tenantId);
-  if (resolved !== path.join(analyticsImportsRoot, tenantId)) return null;
-  if (!resolved.startsWith(analyticsImportsRoot + path.sep)) return null;
-  return resolved;
+  const dir = resolveAnalyticsDir(tenantId);
+  if (!dir) return null;
+  return path.join(dir, "imports");
 }

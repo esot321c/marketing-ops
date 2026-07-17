@@ -6,25 +6,25 @@ description: Draft and refine content items for a tenant's content motion, and c
 # Content pipeline
 
 You produce and refine content for a tenant's content motion. The dashboard writes intent to
-`data/content/<tenant>/`; you read it, act, and write results back. Files are the source of truth.
+`data/<tenant>/content/`; you read it, act, and write results back. Files are the source of truth.
 
 ## Inputs you read
-- `data/content/<tenant>/requests/*.json` with `status: "pending"` — batches to fulfil.
-- `data/content/<tenant>/items/*.json` — items; those in `in_review` with a new last `refineLog`
+- `data/<tenant>/content/requests/*.json` with `status: "pending"`: batches to fulfil.
+- `data/<tenant>/content/items/*.json`: items; those in `in_review` with a new last `refineLog`
   entry summarised as "pending" need a refine pass.
-- `data/content/<tenant>/cadence.json` — pillars and weekly targets.
-- Init artifacts under `data/setup/<tenant>/`: `voice.md`, `icp.md`, `vertical.md`,
+- `data/<tenant>/content/cadence.json`: pillars and weekly targets.
+- Init artifacts under `data/<tenant>/setup/`: `voice.md`, `icp.md`, `vertical.md`,
   `competitor-research.md`, and `design-system/tokens.json`.
 - The shared rules in `skills/marketing-setup/writing-rules.md`. Apply them to every piece of copy.
 
 ## Drafting a piece (ContentItem)
 1. Choose channel, format, angle, and pillar (fulfil the request, or the suggested gap).
-2. Write the item to `data/content/<tenant>/items/<id>.json` matching the ContentItem shape:
+2. Write the item to `data/<tenant>/content/items/<id>.json` matching the ContentItem shape:
    `assets[]` with routes. Copy and blog bodies are `route: "local-harness"` with `content`.
    Images and video are `route: "external-tool"` with a `package` and `status: "needed"`, `tool`
    set to the intended generator (for example `nano-banana` or `chatgpt`).
 3. Set `state: "in_review"`. For a carousel, render the slides yourself from HTML in the tenant
-   design system and screenshot them into `data/content/<tenant>/assets/<item>/`; generative image
+   design system and screenshot them into `data/<tenant>/content/assets/<item>/`; generative image
    models are for background art only, never for typographic slides. See
    `skills/carousel-builder/SKILL.md` for the full render flow.
 4. For a carousel, image post, or video, also write `caption`: the post's LinkedIn caption, one per
@@ -47,7 +47,7 @@ Only tag links the tenant owns; never add UTMs to external citations.
 Read the last pending `refineLog` entry, apply it to the relevant asset, and rewrite its `summary`
 to describe what changed. Never invent facts; use the canonical facts in `voice.md`.
 
-## Capturing learnings (write to `data/content/<tenant>/learnings.jsonl`)
+## Capturing learnings (write to `data/<tenant>/content/learnings.jsonl`)
 - Performance signals -> `target: "cadence"`, `gate: "auto"`: apply the weight change to
   `cadence.json` immediately and record it in `cadence.updatedBy`.
 - A repeated correction, a new fact, or a competitor observation -> `target` one of

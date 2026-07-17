@@ -31,7 +31,7 @@
       "status": "needed",
       "package": {
         "kind": "image",
-        "prompt": "Slides render locally from HTML in the tenant design system (paper background, single accent color, display serif headings, humanist sans body, from design-system/tokens.json). Source: data/content/example-personal/renders/example-carousel/slides.html, screenshotted at 1080x1080 per slide into data/content/example-personal/assets/example-carousel/. Slide 2 is the dark inverse variant.",
+        "prompt": "Slides render locally from HTML in the tenant design system (paper background, single accent color, display serif headings, humanist sans body, from design-system/tokens.json). Source: data/example-personal/content/renders/example-carousel/slides.html, screenshotted at 1080x1080 per slide into data/example-personal/content/assets/example-carousel/. Slide 2 is the dark inverse variant.",
         "treatment": "infographic"
       }
     }

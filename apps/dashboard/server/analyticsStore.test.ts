@@ -4,11 +4,12 @@ import { mkdir, rm, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { analyticsFile, readAnalytics, appendCapture } from "./analyticsStore.js";
 import { registerRoutes } from "./routes.js";
-import { analyticsRoot } from "../src/lib/setupPaths.js";
+import { dataRoot, resolveAnalyticsDir } from "../src/lib/setupPaths.js";
 import type { AnalyticsPost, AnalyticsCapture } from "../src/lib/analyticsTypes.js";
 
 const tenant = "analytics-test-agency";
-const tenantDir = path.join(analyticsRoot, tenant);
+const tenantDir = resolveAnalyticsDir(tenant)!;
+const tenantRoot = path.join(dataRoot, tenant);
 
 beforeAll(async () => {
   await mkdir(tenantDir, { recursive: true });
@@ -20,7 +21,7 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  await rm(tenantDir, { recursive: true, force: true });
+  await rm(tenantRoot, { recursive: true, force: true });
 });
 
 function capture(overrides: Partial<AnalyticsCapture> = {}): AnalyticsCapture {
@@ -54,7 +55,7 @@ function post(overrides: Partial<Omit<AnalyticsPost, "captures">> = {}): Omit<An
   };
 }
 
-test("analyticsFile resolves to data/analytics/<tenant>/posts.json", () => {
+test("analyticsFile resolves to data/<tenant>/analytics/posts.json", () => {
   const file = analyticsFile(tenant);
   expect(file).toBe(path.join(tenantDir, "posts.json"));
 });

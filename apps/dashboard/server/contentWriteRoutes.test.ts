@@ -3,13 +3,14 @@ import { Hono } from "hono";
 import { mkdir, rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { registerRoutes } from "./routes.js";
-import { contentRoot } from "../src/lib/setupPaths.js";
+import { dataRoot, resolveContentDir } from "../src/lib/setupPaths.js";
 
 const app = new Hono();
 registerRoutes(app);
-const dir = path.join(contentRoot, "write-test-agency");
-// tenantExists() reads data/tenants/*.json (via listTenants), not data/setup or
-// data/content — write-test-agency isn't registered locally, so register it here.
+const dir = resolveContentDir("write-test-agency")!;
+// tenantExists() reads data/tenants/*.json (via listTenants), not the
+// tenant's setup/ or content/ dir; write-test-agency isn't registered
+// locally, so register it here.
 const tenantsRoot = path.resolve(process.cwd(), "..", "..", "data", "tenants");
 const tenantFile = path.join(tenantsRoot, "write-test-agency.json");
 
@@ -19,7 +20,7 @@ beforeAll(async () => {
   await writeFile(tenantFile, JSON.stringify({ id: "write-test-agency", name: "Write Test Agency" }));
 });
 afterAll(async () => {
-  await rm(dir, { recursive: true, force: true });
+  await rm(path.join(dataRoot, "write-test-agency"), { recursive: true, force: true });
   await rm(tenantFile, { force: true });
 });
 
