@@ -96,8 +96,13 @@ export function Composer({ tenant, tenantName, itemId }: { tenant: string; tenan
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
           <span className="ws-pill ws-pill-mono">{item.state}</span>
           <span className="ws-pill ws-pill-accent">{effectiveFormat(item)}</span>
-          <span className="ws-pill">{item.angle}</span>
         </div>
+        {item.angle ? (
+          <div style={{ marginTop: 10 }}>
+            <span className="ws-label">Angle</span>
+            <p className="ws-slate" style={{ fontSize: 13, lineHeight: 1.5, margin: "4px 0 0" }}>{item.angle}</p>
+          </div>
+        ) : null}
       </header>
 
       <CaptionCard caption={item.caption} />
