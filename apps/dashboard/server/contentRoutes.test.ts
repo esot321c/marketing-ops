@@ -3,13 +3,14 @@ import { Hono } from "hono";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { registerRoutes } from "./routes.js";
-import { contentRoot } from "../src/lib/setupPaths.js";
+import { dataRoot, resolveContentDir } from "../src/lib/setupPaths.js";
 
 const app = new Hono();
 registerRoutes(app);
-const dir = path.join(contentRoot, "example-agency");
-// tenantExists() reads data/tenants/*.json (via listTenants), not data/setup or
-// data/content — example-agency isn't registered locally, so register it here.
+const dir = resolveContentDir("example-agency")!;
+// tenantExists() reads data/tenants/*.json (via listTenants), not the
+// tenant's setup/ or content/ dir — example-agency isn't registered locally,
+// so register it here.
 const tenantsRoot = path.resolve(process.cwd(), "..", "..", "data", "tenants");
 const tenantFile = path.join(tenantsRoot, "example-agency.json");
 
@@ -27,7 +28,7 @@ beforeAll(async () => {
   await writeFile(tenantFile, JSON.stringify({ id: "example-agency", name: "Example Agency" }));
 });
 afterAll(async () => {
-  await rm(dir, { recursive: true, force: true });
+  await rm(path.join(dataRoot, "example-agency"), { recursive: true, force: true });
   await rm(tenantFile, { force: true });
 });
 
@@ -50,7 +51,7 @@ test("GET unknown tenant is 404", async () => {
 });
 
 test("GET cadence returns the seeded cadence for a tenant with known targets and pillars", async () => {
-  const seededDir = path.join(contentRoot, "cadence-seeded-tenant");
+  const seededDir = resolveContentDir("cadence-seeded-tenant")!;
   const seededTenantFile = path.join(tenantsRoot, "cadence-seeded-tenant.json");
   await mkdir(seededDir, { recursive: true });
   await writeFile(seededTenantFile, JSON.stringify({ id: "cadence-seeded-tenant", name: "Cadence Seeded Tenant" }));
@@ -69,13 +70,13 @@ test("GET cadence returns the seeded cadence for a tenant with known targets and
     expect(body.perWeek).toEqual({ "linkedin/carousel": 2, "blog/blog-post": 1 });
     expect(body.pillars).toEqual([{ name: "reliability", weight: 3 }]);
   } finally {
-    await rm(seededDir, { recursive: true, force: true });
+    await rm(path.join(dataRoot, "cadence-seeded-tenant"), { recursive: true, force: true });
     await rm(seededTenantFile, { force: true });
   }
 });
 
 test("GET cadence for a tenant with no cadence.json returns the empty default", async () => {
-  const noCadenceDir = path.join(contentRoot, "no-cadence-tenant");
+  const noCadenceDir = resolveContentDir("no-cadence-tenant")!;
   const noCadenceTenantFile = path.join(tenantsRoot, "no-cadence-tenant.json");
   await mkdir(noCadenceDir, { recursive: true });
   await writeFile(noCadenceTenantFile, JSON.stringify({ id: "no-cadence-tenant", name: "No Cadence Tenant" }));
@@ -86,7 +87,7 @@ test("GET cadence for a tenant with no cadence.json returns the empty default", 
     expect(body.tenantId).toBe("no-cadence-tenant");
     expect(body.perWeek).toEqual({});
   } finally {
-    await rm(noCadenceDir, { recursive: true, force: true });
+    await rm(path.join(dataRoot, "no-cadence-tenant"), { recursive: true, force: true });
     await rm(noCadenceTenantFile, { force: true });
   }
 });

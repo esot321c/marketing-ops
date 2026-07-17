@@ -122,7 +122,7 @@ export function registerRoutes(app: Hono) {
       `# Intake — ${tenant}\n\n- LinkedIn: ${body.linkedinUrl ?? ""}\n- Website: ${body.websiteUrl ?? ""}\n\n${body.notes ?? ""}\n`, "utf8");
     const state = (await readInitState(tenant)) ?? createInitState(tenant);
     const next = setStageStatus(state, "import-intake", "in-review");
-    next.stages["import-intake"].artifactPath = `data/setup/${tenant}/intake.md`;
+    next.stages["import-intake"].artifactPath = `data/${tenant}/setup/intake.md`;
     await writeInitState(tenant, next);
     return c.json({ ok: true, state: next });
   });
@@ -143,7 +143,7 @@ export function registerRoutes(app: Hono) {
     await writeFile(dest, Buffer.from(await file.arrayBuffer()));
     await appendFile(path.join(dir, "import-manifest.json"),
       JSON.stringify({ file: safeName, type: file.type, size: file.size }) + "\n", "utf8");
-    return c.json({ ok: true, file: `data/setup/${tenant}/assets/${safeName}` });
+    return c.json({ ok: true, file: `data/${tenant}/setup/assets/${safeName}` });
   });
 
   app.post("/api/setup/:tenant/:stage/input", async (c) => {
@@ -159,7 +159,7 @@ export function registerRoutes(app: Hono) {
     await writeFile(path.join(dir, `${stage}.md`), `# ${def.label} — ${tenant}\n\n${body.content ?? ""}\n`, "utf8");
     const state = (await readInitState(tenant)) ?? createInitState(tenant);
     const next = setStageStatus(state, stage, "in-review");
-    next.stages[stage].artifactPath = `data/setup/${tenant}/${stage}.md`;
+    next.stages[stage].artifactPath = `data/${tenant}/setup/${stage}.md`;
     await writeInitState(tenant, next);
     return c.json({ ok: true, state: next });
   });
@@ -392,7 +392,7 @@ export function registerRoutes(app: Hono) {
     if (!dest) return c.text("Bad path", 400);
     await mkdir(path.dirname(dest), { recursive: true });
     await writeFile(dest, Buffer.from(await file.arrayBuffer()));
-    const rel = `data/content/${tenant}/assets/${c.req.param("id")}/${safe}`;
+    const rel = `data/${tenant}/content/assets/${c.req.param("id")}/${safe}`;
     return c.json({ ok: true, file: rel });
   });
 

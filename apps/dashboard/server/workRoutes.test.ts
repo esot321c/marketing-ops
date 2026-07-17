@@ -3,17 +3,17 @@ import { Hono } from "hono";
 import { mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { registerWorkRoutes, parseFrontmatter, rewriteStatus } from "./workRoutes.js";
-import { workRoot } from "../src/lib/setupPaths.js";
+import { dataRoot, resolveWorkTypeDir } from "../src/lib/setupPaths.js";
 
 const app = new Hono();
 registerWorkRoutes(app);
 
 const tenant = "work-test-agency";
-const campaignsDir = path.join(workRoot, tenant, "campaigns");
+const campaignsDir = resolveWorkTypeDir(tenant, "campaigns")!;
 
 const summaryTenant = "work-summary-agency";
-const summaryCampaignsDir = path.join(workRoot, summaryTenant, "campaigns");
-const summaryResearchDir = path.join(workRoot, summaryTenant, "research");
+const summaryCampaignsDir = resolveWorkTypeDir(summaryTenant, "campaigns")!;
+const summaryResearchDir = resolveWorkTypeDir(summaryTenant, "research")!;
 
 beforeAll(async () => {
   await mkdir(campaignsDir, { recursive: true });
@@ -36,8 +36,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await rm(path.join(workRoot, tenant), { recursive: true, force: true });
-  await rm(path.join(workRoot, summaryTenant), { recursive: true, force: true });
+  await rm(path.join(dataRoot, tenant), { recursive: true, force: true });
+  await rm(path.join(dataRoot, summaryTenant), { recursive: true, force: true });
 });
 
 test("GET list returns entries sorted by created desc, titles parsed", async () => {
@@ -128,7 +128,7 @@ describe("rewriteStatus", () => {
 });
 
 const statusTenant = "work-status-agency";
-const statusDir = path.join(workRoot, statusTenant, "campaigns");
+const statusDir = resolveWorkTypeDir(statusTenant, "campaigns")!;
 
 beforeAll(async () => {
   await mkdir(statusDir, { recursive: true });
@@ -140,7 +140,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await rm(path.join(workRoot, statusTenant), { recursive: true, force: true });
+  await rm(path.join(dataRoot, statusTenant), { recursive: true, force: true });
 });
 
 test("POST status with invalid status value returns 400", async () => {
@@ -176,7 +176,7 @@ test("POST status rewrites the file on disk and returns the updated summary", as
 });
 
 const countsTenant = "work-counts-agency";
-const countsDir = path.join(workRoot, countsTenant, "campaigns");
+const countsDir = resolveWorkTypeDir(countsTenant, "campaigns")!;
 
 beforeAll(async () => {
   await mkdir(countsDir, { recursive: true });
@@ -193,7 +193,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await rm(path.join(workRoot, countsTenant), { recursive: true, force: true });
+  await rm(path.join(dataRoot, countsTenant), { recursive: true, force: true });
 });
 
 test("GET summary counts exclude archived docs", async () => {

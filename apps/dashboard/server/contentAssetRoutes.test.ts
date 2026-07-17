@@ -3,11 +3,11 @@ import { Hono } from "hono";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { registerRoutes } from "./routes.js";
-import { contentRoot } from "../src/lib/setupPaths.js";
+import { dataRoot, resolveContentDir } from "../src/lib/setupPaths.js";
 
 const app = new Hono();
 registerRoutes(app);
-const dir = path.join(contentRoot, "asset-test-agency");
+const dir = resolveContentDir("asset-test-agency")!;
 // tenantExists() reads data/tenants/*.json (via listTenants); register the test tenant.
 const tenantsRoot = path.resolve(process.cwd(), "..", "..", "data", "tenants");
 const tenantFile = path.join(tenantsRoot, "asset-test-agency.json");
@@ -18,7 +18,7 @@ beforeAll(async () => {
   await writeFile(tenantFile, JSON.stringify({ id: "asset-test-agency", name: "Asset Test Agency" }));
 });
 afterAll(async () => {
-  await rm(dir, { recursive: true, force: true });
+  await rm(path.join(dataRoot, "asset-test-agency"), { recursive: true, force: true });
   await rm(tenantFile, { force: true });
 });
 

@@ -2,14 +2,15 @@ import { test, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import ExcelJS from "exceljs";
 import { mkdir, rm, writeFile, readdir, utimes } from "node:fs/promises";
 import path from "node:path";
-import { importXlsxFile, watchImports } from "./analyticsImport.js";
+import { importXlsxFile, watchTenantImports } from "./analyticsImport.js";
 import { readAnalytics } from "./analyticsStore.js";
-import { analyticsRoot, contentRoot } from "../src/lib/setupPaths.js";
+import { dataRoot, resolveAnalyticsDir, resolveAnalyticsImportsDir, resolveContentDir } from "../src/lib/setupPaths.js";
 
 const tenant = "import-test-agency";
-const importsDir = path.join(analyticsRoot, "imports", tenant);
-const tenantAnalyticsDir = path.join(analyticsRoot, tenant);
-const tenantContentDir = path.join(contentRoot, tenant);
+const importsDir = resolveAnalyticsImportsDir(tenant)!;
+const tenantAnalyticsDir = resolveAnalyticsDir(tenant)!;
+const tenantContentDir = resolveContentDir(tenant)!;
+const tenantRoot = path.join(dataRoot, tenant);
 
 const POST_URL =
   "https://www.linkedin.com/posts/example-agency_why-shipping-beats-polishing-ugcPost-1000000000000000001-Ab3d";
@@ -36,16 +37,15 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  await rm(importsDir, { recursive: true, force: true });
-  await mkdir(importsDir, { recursive: true });
+  // importsDir is nested under tenantAnalyticsDir in the tenant-first layout,
+  // so the tenant analytics dir must be cleared before recreating importsDir.
   await rm(tenantAnalyticsDir, { recursive: true, force: true });
+  await mkdir(importsDir, { recursive: true });
   await rm(tenantContentDir, { recursive: true, force: true });
 });
 
 afterAll(async () => {
-  await rm(importsDir, { recursive: true, force: true });
-  await rm(tenantAnalyticsDir, { recursive: true, force: true });
-  await rm(tenantContentDir, { recursive: true, force: true });
+  await rm(tenantRoot, { recursive: true, force: true });
 });
 
 test("importXlsxFile writes a capture using the file's mtime and moves the file to processed/", async () => {
@@ -198,11 +198,17 @@ test("proposes itemId when the slug is a prefix of a long headline (existing beh
   expect(data.posts[0]?.itemId).toBe("match");
 });
 
-test("watchImports registers a callback that imports files as they appear", () => {
+test("watchTenantImports registers a callback for the tenant's imports dir", () => {
   const registerWatcher = vi.fn();
-  watchImports(registerWatcher);
+  watchTenantImports(tenant, registerWatcher);
   expect(registerWatcher).toHaveBeenCalledTimes(1);
   const [dir, onFile] = registerWatcher.mock.calls[0]!;
-  expect(typeof dir).toBe("string");
+  expect(dir).toBe(importsDir);
   expect(typeof onFile).toBe("function");
+});
+
+test("watchTenantImports is a no-op for an invalid tenant id", () => {
+  const registerWatcher = vi.fn();
+  watchTenantImports("../escape", registerWatcher);
+  expect(registerWatcher).not.toHaveBeenCalled();
 });
