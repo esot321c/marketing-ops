@@ -3,7 +3,7 @@ import type { DragEvent } from "react";
 import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import { ALL_BOARD_STATES, COLUMN_COLORS, type BoardPrefs } from "@/lib/contentLibrary";
-import { dropArgs, insertOrder, reorderList } from "@/lib/boardDrag";
+import { computeReorder, dropArgs, reorderList } from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 import { effectiveFormat } from "@/lib/contentTypes";
 import { IdeaReviewPopup } from "./IdeaReviewPopup";
@@ -79,16 +79,10 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
     if (!id || !source || !data) return;
 
     if (source === target) {
-      const original = data[target];
-      const draggedIndex = original.findIndex((i) => i.id === id);
-      const items = original.filter((i) => i.id !== id);
-      // The drop-slot index is a position in the original (pre-removal) column.
-      // Once the dragged item is removed, every slot after its old position
-      // shifts left by one, so the target index needs the same adjustment.
-      const adjustedIndex = draggedIndex !== -1 && draggedIndex < index ? index - 1 : index;
-      const before = items[adjustedIndex - 1] ?? null;
-      const after = items[adjustedIndex] ?? null;
-      const order = insertOrder(before, after);
+      // data[target] is already in displayed order (orderedColumn); index is
+      // the drop-slot position in that same pre-removal array.
+      const order = computeReorder(data[target], id, index);
+      if (order === null) return;
       setActionError(null);
       try {
         await setItemOrder(tenant, id, order);

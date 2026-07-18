@@ -157,6 +157,97 @@ test("dropping an item within its own column calls setItemOrder, not postState",
   expect(postState).not.toHaveBeenCalled();
 });
 
+test("dropping a ranked item into a gap between two legacy unordered neighbors keeps it ahead of them, not at the front of the column", async () => {
+  // "a" and "b" are ranked; "x" and "y" are legacy items with no order, so
+  // orderedColumn displays them trailing (sorted by id): a, b, x, y. Drag
+  // "b" to the slot between "x" and "y". The old logic read its neighbors
+  // off the pre-removal array once "b" is removed ([a, x, y]); both the
+  // slot's immediate before ("x") and after ("y") are unranked, so it fell
+  // back to a context-free 0, which is less than "a"'s order and jumped
+  // "b" ahead of "a" instead of leaving it between the ranked prefix and
+  // the unordered tail it was dropped into.
+  const a = makeItem("a", "idea", "A", 10);
+  const b = makeItem("b", "idea", "B", 20);
+  const x = makeItem("x", "idea", "X");
+  const y = makeItem("y", "idea", "Y");
+  const board = { ...emptyBoard(), idea: [a, b, x, y] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(setItemOrder).mockResolvedValue({ ok: true, item: { ...b, order: 1010 } });
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("A");
+
+  // Drop "b" into slot index 3, i.e. between "x" (index 2) and "y" (index 3).
+  const dropSlot = screen.getByTestId("dropslot-idea-3");
+  const dataTransfer = {
+    getData: (key: string) => (key === "application/x-item-id" ? "b" : "idea"),
+  };
+  fireEvent.drop(dropSlot, { dataTransfer });
+
+  await waitFor(() => {
+    expect(setItemOrder).toHaveBeenCalled();
+  });
+  const [, , writtenOrder] = vi.mocked(setItemOrder).mock.calls[0]!;
+
+  // Re-derive the displayed order the same way orderedColumn does, to
+  // confirm "b" still sorts right after "a" (ranked items always precede
+  // unranked ones, so it can never land strictly between "x" and "y", but
+  // it must not jump ahead of "a" either).
+  const rows = [
+    { id: "a", order: 10 },
+    { id: "b", order: writtenOrder as number },
+    { id: "x", order: undefined },
+    { id: "y", order: undefined },
+  ].sort((p, q) => {
+    const pOrdered = typeof p.order === "number";
+    const qOrdered = typeof q.order === "number";
+    if (pOrdered && qOrdered) return p.order! - q.order!;
+    if (pOrdered !== qOrdered) return pOrdered ? -1 : 1;
+    return p.id < q.id ? -1 : 1;
+  });
+  expect(rows.map((r) => r.id)).toEqual(["a", "b", "x", "y"]);
+});
+
+test("dropping an item back onto its own slot is a no-op and does not call setItemOrder", async () => {
+  const first = makeItem("idea-1", "idea", "First idea", 10);
+  const second = makeItem("idea-2", "idea", "Second idea", 20);
+  const board = { ...emptyBoard(), idea: [first, second] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("First idea");
+
+  // "Second idea" is already at index 1; dropping it on its own slot (index 1)
+  // does not move it.
+  const dropSlot = screen.getByTestId("dropslot-idea-1");
+  const dataTransfer = {
+    getData: (key: string) => (key === "application/x-item-id" ? "idea-2" : "idea"),
+  };
+  fireEvent.drop(dropSlot, { dataTransfer });
+
+  // Give any accidental async write a chance to fire before asserting absence.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(setItemOrder).not.toHaveBeenCalled();
+});
+
+test("dropping a single-item column's only card on its own slot does not call setItemOrder", async () => {
+  const only = makeItem("only-1", "idea", "Only idea", 10);
+  const board = { ...emptyBoard(), idea: [only] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Only idea");
+
+  const dropSlot = screen.getByTestId("dropslot-idea-0");
+  const dataTransfer = {
+    getData: (key: string) => (key === "application/x-item-id" ? "only-1" : "idea"),
+  };
+  fireEvent.drop(dropSlot, { dataTransfer });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(setItemOrder).not.toHaveBeenCalled();
+});
+
 test("dropping an item across columns still calls postState", async () => {
   const draftingItem = makeItem("drafting-1", "drafting", "Drafting title");
   const board = { ...emptyBoard(), drafting: [draftingItem] };

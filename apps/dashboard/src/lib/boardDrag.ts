@@ -22,6 +22,10 @@ export function reorderList<T>(order: T[], from: number, to: number): T[] {
   return next;
 }
 
+// Integer gap between normalized slots. Midpoints of integers spaced this far
+// apart stay exactly representable in a float for far more than the ~50
+// same-gap inserts a column sees in practice, so repeated drops into the same
+// slot do not collapse into each other before a full rebalance is warranted.
 const ORDER_GAP = 1000;
 
 // Computes a new `order` value for an item dropped between `before` and
@@ -40,4 +44,65 @@ export function insertOrder(
   if (typeof beforeOrder === "number") return beforeOrder + ORDER_GAP;
   if (typeof afterOrder === "number") return afterOrder - ORDER_GAP;
   return 0;
+}
+
+// orderedColumn (contentLibrary.ts) sorts every ranked item ahead of every
+// unranked one, regardless of magnitude, and only falls back to id order
+// among items that share ranked-ness. So a ranked neighbor is the only thing
+// that can anchor a numeric midpoint; an unranked neighbor never needs one,
+// because any number the moved item receives already sorts correctly against
+// it. Walks outward from `from` (inclusive) in `dir` and returns the first
+// ranked item, or null if the column has no ranked item on that side.
+function nearestRanked(
+  column: { order?: number }[],
+  from: number,
+  dir: 1 | -1,
+): { order?: number } | null {
+  for (let i = from; i >= 0 && i < column.length; i += dir) {
+    const item = column[i];
+    if (item && typeof item.order === "number") return item;
+  }
+  return null;
+}
+
+// Computes the new `order` for an item dragged within its own column, or
+// `null` when the drop does not actually move the item.
+//
+// `items` is the column in its CURRENT DISPLAYED order (the order
+// orderedColumn already renders, mixing real `order` values and legacy
+// items that have none) and `dropIndex` is the drop-slot position in that
+// same pre-removal array. A column can mix items that have a real `order`
+// with legacy items that do not; reading the new value off whichever
+// immediate neighbor happens to have a numeric `order` (ignoring the other
+// neighbor's actual screen position) is what produces the wrong placement.
+// Instead this looks past an unranked immediate neighbor to the nearest
+// ranked item on that side, since that is the only neighbor that can
+// constrain where the moved item's numeric order needs to fall; unranked
+// neighbors are already correctly positioned relative to any number the
+// moved item receives. Only the moved item is written; other items keep
+// their existing (or absent) order and get a real one lazily on their own
+// next move.
+export function computeReorder(
+  items: { id: string; order?: number }[],
+  draggedId: string,
+  dropIndex: number,
+): number | null {
+  const draggedIndex = items.findIndex((i) => i.id === draggedId);
+  const remaining = items.filter((i) => i.id !== draggedId);
+  const adjustedIndex = draggedIndex !== -1 && draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
+
+  if (draggedIndex !== -1 && adjustedIndex === draggedIndex) return null;
+
+  const immediateBefore = remaining[adjustedIndex - 1];
+  const immediateAfter = remaining[adjustedIndex];
+  if (
+    immediateBefore && immediateAfter &&
+    typeof immediateBefore.order === "number" && typeof immediateAfter.order === "number"
+  ) {
+    return insertOrder(immediateBefore, immediateAfter);
+  }
+
+  const before = nearestRanked(remaining, adjustedIndex - 1, -1);
+  const after = nearestRanked(remaining, adjustedIndex, 1);
+  return insertOrder(before, after);
 }
