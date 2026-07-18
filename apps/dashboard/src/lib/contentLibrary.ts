@@ -5,6 +5,10 @@ export const BOARD_STATES: ContentState[] = [
   "idea", "drafting", "in_review", "approved", "scheduled", "posted", "measured",
 ];
 
+export const PARKED_STATES: ContentState[] = ["needs_work", "parked"];
+
+export const ALL_BOARD_STATES: ContentState[] = [...BOARD_STATES, ...PARKED_STATES];
+
 export function parseItems(rawFiles: string[]): ContentItem[] {
   const out: ContentItem[] = [];
   for (const raw of rawFiles) {
@@ -21,8 +25,12 @@ export function filterByState(items: ContentItem[], state: ContentState): Conten
 
 export function boardIndex(items: ContentItem[]): Record<ContentState, ContentItem[]> {
   const index = Object.fromEntries(
-    BOARD_STATES.map((s) => [s, [] as ContentItem[]])
+    ALL_BOARD_STATES.map((s) => [s, [] as ContentItem[]])
   ) as Record<ContentState, ContentItem[]>;
   for (const item of items) index[item.state].push(item);
   return index;
+}
+
+export function activeCount(index: Record<ContentState, ContentItem[]>): number {
+  return BOARD_STATES.reduce((sum, s) => sum + index[s].length, 0);
 }
