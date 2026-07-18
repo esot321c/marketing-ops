@@ -23,7 +23,7 @@ import {
 } from "../src/lib/setupPaths.js";
 import { isValidTenantId } from "../src/lib/setupPaths.js";
 import { readAnalytics } from "./analyticsStore.js";
-import { parseItems, boardIndex, ALL_BOARD_STATES, COLUMN_COLORS, reconcileBoardPrefs, type BoardPrefs } from "../src/lib/contentLibrary.js";
+import { parseItems, boardIndex, ALL_BOARD_STATES, reconcileBoardPrefs, type BoardPrefs } from "../src/lib/contentLibrary.js";
 import { todayView } from "../src/lib/planner.js";
 import { parseLearnings, pendingFirst, decide } from "../src/lib/learnings.js";
 import { detectPosture, availableModes } from "../src/lib/runModes.js";
@@ -285,15 +285,6 @@ export function registerRoutes(app: Hono) {
     if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
     const body = await c.req.json<{ columnOrder?: unknown; columnColors?: Record<string, unknown> }>().catch(() => null);
     if (!body || !Array.isArray(body.columnOrder)) return c.text("Missing or invalid columnOrder", 400);
-    if (body.columnColors !== undefined) {
-      if (typeof body.columnColors !== "object" || body.columnColors === null) {
-        return c.text("Invalid columnColors", 400);
-      }
-      for (const [state, color] of Object.entries(body.columnColors)) {
-        if (!(ALL_BOARD_STATES as string[]).includes(state)) return c.text("Unknown state in columnColors", 400);
-        if (typeof color !== "string" || !(color in COLUMN_COLORS)) return c.text("Unknown color in columnColors", 400);
-      }
-    }
     const reconciled = reconcileBoardPrefs({
       columnOrder: body.columnOrder,
       columnColors: body.columnColors,
