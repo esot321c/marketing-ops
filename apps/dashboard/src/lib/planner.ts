@@ -1,4 +1,5 @@
 import type { Cadence, ContentItem } from "./contentTypes.js";
+import { PARKED_STATES } from "./contentLibrary.js";
 
 export interface Suggestion { channel: string; format: string; pillar: string; }
 
@@ -9,9 +10,12 @@ function isoWeekKey(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+const isParked = (i: ContentItem): boolean => (PARKED_STATES as string[]).includes(i.state);
+
 export function dueItems(items: ContentItem[], todayISO: string): ContentItem[] {
   return items.filter(
     (i) =>
+      !isParked(i) &&
       i.schedule.status === "scheduled" &&
       typeof i.schedule.date === "string" &&
       i.schedule.date <= todayISO
@@ -27,6 +31,7 @@ export function suggestedGaps(
   const madeThisWeek = new Map<string, number>();
   const usedPillars = new Set<string>();
   for (const i of items) {
+    if (isParked(i)) continue;
     const d = i.schedule.date;
     if (typeof d === "string" && isoWeekKey(d) === week) {
       const key = `${i.channel}/${i.format}`;
