@@ -114,6 +114,68 @@ test("POST state accepts the needs_work and parked states", async () => {
   expect(saved.state).toBe("parked");
 });
 
+test("POST order writes the order field and returns the updated item", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "ord1.json"), JSON.stringify({
+    id: "ord1", tenantId: "write-test-agency", channel: "linkedin", format: "text-post",
+    state: "in_review", title: "T", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const res = await app.request("/api/content/write-test-agency/ord1/order", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ order: 1.5 }),
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { ok: boolean; item: { order: number } };
+  expect(body.ok).toBe(true);
+  expect(body.item.order).toBe(1.5);
+  const saved = JSON.parse(await readFile(path.join(itemsDir, "ord1.json"), "utf8"));
+  expect(saved.order).toBe(1.5);
+});
+
+test("POST order rejects a missing or non-numeric order", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "ord2.json"), JSON.stringify({
+    id: "ord2", tenantId: "write-test-agency", channel: "linkedin", format: "text-post",
+    state: "in_review", title: "T", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const missing = await app.request("/api/content/write-test-agency/ord2/order", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  expect(missing.status).toBe(400);
+  const nonNumber = await app.request("/api/content/write-test-agency/ord2/order", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ order: "first" }),
+  });
+  expect(nonNumber.status).toBe(400);
+  const notFinite = await app.request("/api/content/write-test-agency/ord2/order", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: '{"order":null}',
+  });
+  expect(notFinite.status).toBe(400);
+});
+
+test("POST order for an unknown tenant returns the same error shape as state", async () => {
+  const res = await app.request("/api/content/no-such-tenant/ord1/order", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ order: 1 }),
+  });
+  expect(res.status).toBe(404);
+  expect(await res.text()).toBe("Unknown tenant");
+});
+
+test("POST order for an unknown item id returns 400", async () => {
+  const res = await app.request("/api/content/write-test-agency/no-such-item/order", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ order: 1 }),
+  });
+  expect(res.status).toBe(400);
+});
+
 test("POST run for refine includes the queued note in the instruction", async () => {
   const itemsDir = path.join(dir, "items");
   await mkdir(itemsDir, { recursive: true });

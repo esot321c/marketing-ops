@@ -302,6 +302,22 @@ export function registerRoutes(app: Hono) {
     return c.json({ ok: true, item });
   });
 
+  app.post("/api/content/:tenant/:id/order", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    const file = resolveContentItemPath(tenant, c.req.param("id"));
+    if (!file) return c.text("Bad id", 400);
+    const body = await c.req.json<{ order?: number }>().catch(() => null);
+    const raw = await readFile(file, "utf8").catch(() => null);
+    if (raw === null || body?.order === undefined || !Number.isFinite(body.order)) {
+      return c.text("Not found or missing 'order'", 400);
+    }
+    const item = JSON.parse(raw) as { order?: number };
+    item.order = body.order;
+    await writeFile(file, JSON.stringify(item, null, 2), "utf8");
+    return c.json({ ok: true, item });
+  });
+
   app.post("/api/content/:tenant/:id/refine", async (c) => {
     const tenant = c.req.param("tenant");
     if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
