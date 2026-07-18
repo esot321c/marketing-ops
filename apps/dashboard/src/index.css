@@ -339,3 +339,83 @@
 .ws-prose li::marker { color: var(--ws-slate); }
 .ws-prose blockquote { border-left: 2px solid var(--ws-accent); margin: 10px 0; padding: 2px 0 2px 14px; color: var(--ws-slate); font-style: italic; }
 .ws-prose hr { border: none; border-top: 1px solid var(--ws-line); margin: 16px 0; }
+
+/* Pipeline board: a GitHub-Projects-style board. The outer wrapper is the
+   only element that scrolls horizontally, so the sidebar and page body
+   never do; each column body scrolls vertically on its own so one long
+   column cannot stretch the page. */
+.ws-board-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding-bottom: 4px;
+}
+.ws-board-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.ws-board-col {
+  flex: 0 0 auto;
+  width: 260px;
+  min-width: 260px;
+}
+.ws-board-colhead {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: grab;
+}
+.ws-board-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ws-ink) 15%, transparent);
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.ws-board-swatchmenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 4px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 132px;
+  padding: 8px;
+  background: var(--ws-raised);
+  border: 1px solid var(--ws-line);
+  border-radius: 10px;
+  box-shadow: var(--ws-shadow);
+}
+.ws-board-colbody {
+  border-radius: 12px;
+  padding: 8px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.ws-board-dropslot {
+  transition: height 0.1s ease;
+}
+.ws-board-card {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  cursor: grab;
+}
+.ws-board-card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
