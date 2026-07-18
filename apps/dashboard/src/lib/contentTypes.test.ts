@@ -56,6 +56,18 @@ test("validateContentItem rejects a non-string caption", () => {
   expect(validateContentItem({ ...item, caption: 42 })).toBe(false);
 });
 
+test("validateContentItem accepts an absent or numeric order", () => {
+  expect(validateContentItem({ ...item, order: undefined })).toBe(true);
+  expect(validateContentItem(item)).toBe(true);
+  expect(validateContentItem({ ...item, order: 5 })).toBe(true);
+});
+
+test("validateContentItem rejects a non-finite or non-number order", () => {
+  expect(validateContentItem({ ...item, order: "x" })).toBe(false);
+  expect(validateContentItem({ ...item, order: NaN })).toBe(false);
+  expect(validateContentItem({ ...item, order: Infinity })).toBe(false);
+});
+
 test("validateContentItem accepts a well-formed citations array", () => {
   expect(validateContentItem({ ...item, citations: [{ label: "A study", url: "https://example.com/s" }] })).toBe(true);
   expect(validateContentItem({ ...item, citations: [] })).toBe(true);

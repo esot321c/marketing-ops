@@ -23,11 +23,25 @@ export function filterByState(items: ContentItem[], state: ContentState): Conten
   return items.filter((i) => i.state === state);
 }
 
+export function orderedColumn(items: ContentItem[]): ContentItem[] {
+  return [...items].sort((a, b) => {
+    const aOrdered = typeof a.order === "number";
+    const bOrdered = typeof b.order === "number";
+    if (aOrdered && bOrdered) {
+      if (a.order !== b.order) return a.order! - b.order!;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    }
+    if (aOrdered !== bOrdered) return aOrdered ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
 export function boardIndex(items: ContentItem[]): Record<ContentState, ContentItem[]> {
   const index = Object.fromEntries(
     ALL_BOARD_STATES.map((s) => [s, [] as ContentItem[]])
   ) as Record<ContentState, ContentItem[]>;
   for (const item of items) index[item.state].push(item);
+  for (const s of ALL_BOARD_STATES) index[s] = orderedColumn(index[s]);
   return index;
 }
 

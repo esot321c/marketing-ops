@@ -61,6 +61,7 @@ export interface ContentItem {
   pillar: string;
   caption?: string; // the LinkedIn post body that accompanies the media; one per post
   citations?: Citation[];
+  order?: number; // per-item rank within its column; absent items sort after ranked ones
   assets: Asset[];
   schedule: Schedule;
   source: string[];
@@ -206,6 +207,10 @@ export function validateContentItem(value: unknown): value is ContentItem {
   }
 
   if (!(v.caption === undefined || typeof v.caption === "string")) {
+    return false;
+  }
+
+  if (!(v.order === undefined || (typeof v.order === "number" && Number.isFinite(v.order)))) {
     return false;
   }
 
