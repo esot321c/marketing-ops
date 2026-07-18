@@ -112,6 +112,38 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.ws-side-collapsed {
+  padding: 20px 6px;
+  align-items: center;
+}
+.ws-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ws-side-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ws-line);
+  border-radius: 8px;
+  background: var(--ws-raised);
+  color: var(--ws-slate);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.ws-side-toggle:hover {
+  border-color: var(--ws-slate);
+  color: var(--ws-ink);
 }
 .ws-wordmark {
   font-family: var(--ws-display);

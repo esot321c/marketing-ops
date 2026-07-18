@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import type { StageId } from "@/lib/types";
 import type { SetupStep } from "@/lib/setupNav";
 import type { ReactNode } from "react";
 import { CAPABILITIES } from "@/lib/capabilities";
+import { readSidebarCollapsed, writeSidebarCollapsed } from "./sidebarCollapse";
 
 export type Section =
   | "today" | "board" | "composer" | "cadence" | "learnings"
@@ -17,6 +19,7 @@ interface WorkspaceSidebarProps {
   hrefFor: (s: Section) => string;
   composerEnabled: boolean;
   outstanding?: Set<string>;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 interface ItemProps {
@@ -72,13 +75,36 @@ const TUNE: { id: Section; label: string }[] = [
   { id: "learnings", label: "Learnings" },
 ];
 
-export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, composerEnabled, outstanding }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, composerEnabled, outstanding, onCollapsedChange }: WorkspaceSidebarProps) {
   const guided = mode === "guided";
   const done = steps.filter((s) => s.status === "done").length;
+  const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed());
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    writeSidebarCollapsed(next);
+    onCollapsedChange?.(next);
+  }
+
+  if (collapsed) {
+    return (
+      <nav className="ws-side ws-side-collapsed">
+        <button type="button" className="ws-side-toggle" aria-label="Expand sidebar" onClick={toggleCollapsed}>
+          {"»"}
+        </button>
+      </nav>
+    );
+  }
 
   return (
     <nav className="ws-side">
-      <div className="ws-wordmark">{tenantName}</div>
+      <div className="ws-side-head">
+        <div className="ws-wordmark">{tenantName}</div>
+        <button type="button" className="ws-side-toggle" aria-label="Collapse sidebar" onClick={toggleCollapsed}>
+          {"«"}
+        </button>
+      </div>
       <div className="ws-kicker">{guided ? `Setting up · ${done} of ${steps.length}` : "Content motion"}</div>
       {guided ? (
         <div className="pbar" style={{ height: 4, background: "var(--ws-band)", borderRadius: 2, margin: "6px 10px 0", overflow: "hidden" }}>

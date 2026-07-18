@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { getInitState, getDesignTokens, approveStage, getWorkSummary } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
@@ -9,6 +9,7 @@ import type { StageId, StageStatus } from "@/lib/types";
 import { wsStyle, FALLBACK, BASE_TOKENS } from "./theme";
 import type { ThemeMode } from "@/lib/themeMode";
 import { WorkspaceSidebar, type Section } from "./WorkspaceSidebar";
+import { readSidebarCollapsed } from "./sidebarCollapse";
 import { StageView } from "@/components/setup/StageView";
 import { TodayView } from "@/components/content/TodayView";
 import { PipelineBoard } from "@/components/content/PipelineBoard";
@@ -33,6 +34,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
   const params = useParams<{ section?: string; itemId?: string }>();
   const navigate = useNavigate();
   const search = `?tenant=${encodeURIComponent(tenant)}`;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readSidebarCollapsed());
 
   // /composer/:itemId resolves to the composer section with an open item.
   const itemId = params.itemId;
@@ -176,8 +178,12 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
     );
   }
 
+  const gridClass = sidebarCollapsed
+    ? "ws ws-fill grid grid-cols-1 md:grid-cols-[52px_1fr]"
+    : "ws ws-fill grid grid-cols-1 md:grid-cols-[224px_1fr]";
+
   return (
-    <div className="ws ws-fill grid grid-cols-1 md:grid-cols-[224px_1fr]" style={style}>
+    <div className={gridClass} style={style}>
       <WorkspaceSidebar
         mode={guided ? "guided" : "ready"}
         tenantName={tenantName}
@@ -186,6 +192,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
         hrefFor={hrefFor}
         composerEnabled={itemId !== undefined}
         outstanding={outstandingIds}
+        onCollapsedChange={setSidebarCollapsed}
       />
       <main className="ws-main">{renderMain()}</main>
     </div>
