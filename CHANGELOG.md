@@ -5,6 +5,23 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-18
+
+The pipeline board becomes a full Kanban board, and content items gain a parked lifecycle.
+
+### Added
+
+- **Parked and needs-work states.** Content items can be set to `needs_work` (came back for revision) or `parked` (shelved or refused). They appear as their own board columns but are excluded from active pipeline counts (Today and Cadence).
+- **Reorderable columns.** Drag column headers to rearrange the board; the order is saved per tenant.
+- **Per-column colors.** Each column header carries a color you pick from a fixed palette, saved per tenant. Color your Parked and Needs work columns however you like.
+- **Manual item ordering.** Drag cards to reorder them within a column; the order persists.
+- **Kanban layout.** The board scrolls horizontally while the sidebar stays fixed, each column scrolls vertically on its own, and cards are wider and shorter.
+- **Collapsible sidebar.** Collapse the left sidebar to give the board more room; the preference is remembered.
+
+### Changed
+
+- Board column state is now stored in `data/<tenant>/content/board-prefs.json` (column order and colors). Existing tenants with no file get sensible defaults, so nothing needs migrating.
+
 ## [0.8.0] - 2026-07-17
 
 BREAKING: the data directory is now tenant-first. Everything for a tenant lives under one folder.
