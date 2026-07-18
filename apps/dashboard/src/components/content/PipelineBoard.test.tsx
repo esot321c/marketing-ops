@@ -244,6 +244,39 @@ test("dropping an item in a column where no item has a stored order yet normaliz
   expect(resorted).toEqual(["b", "c", "a"]);
 });
 
+test("normalization write rejection on an all-unranked column shows the error text and refetches the board", async () => {
+  // Same all-unranked setup as the normalization test above, but one of the
+  // gap-spaced writes rejects. The other writes still target different item
+  // files and should be attempted regardless, and the board must reload so
+  // it reflects whatever mix of ranked/unranked items actually landed on disk.
+  const a = makeItem("a", "idea", "A");
+  const b = makeItem("b", "idea", "B");
+  const c = makeItem("c", "idea", "C");
+  const board = { ...emptyBoard(), idea: [a, b, c] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(setItemOrder).mockImplementation(async (_tenant, id, order) => {
+    if (id === "b") throw new Error("disk full");
+    return { ok: true, item: { ...a, id, order } };
+  });
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("A");
+
+  const dropSlot = screen.getByTestId("dropslot-idea-3");
+  const dataTransfer = {
+    getData: (key: string) => (key === "application/x-item-id" ? "a" : "idea"),
+  };
+  fireEvent.drop(dropSlot, { dataTransfer });
+
+  await waitFor(() => {
+    expect(setItemOrder).toHaveBeenCalledTimes(3);
+  });
+  expect(await screen.findByText("Action failed: disk full")).toBeTruthy();
+  await waitFor(() => {
+    expect(getBoard).toHaveBeenCalledTimes(2);
+  });
+});
+
 test("dropping an item back onto its own slot is a no-op and does not call setItemOrder", async () => {
   const first = makeItem("idea-1", "idea", "First idea", 10);
   const second = makeItem("idea-2", "idea", "Second idea", 20);

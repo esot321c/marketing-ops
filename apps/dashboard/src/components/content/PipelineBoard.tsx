@@ -87,12 +87,13 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
       const writes = computeReorder(data[target], id, index);
       if (writes === null) return;
       setActionError(null);
-      try {
-        await Promise.all(writes.map((w) => setItemOrder(tenant, w.id, w.order)));
-        reload();
-      } catch (err) {
-        setActionError(err instanceof Error ? err.message : String(err));
+      const results = await Promise.allSettled(writes.map((w) => setItemOrder(tenant, w.id, w.order)));
+      const firstRejection = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (firstRejection) {
+        const reason = firstRejection.reason;
+        setActionError(reason instanceof Error ? reason.message : String(reason));
       }
+      reload();
       return;
     }
 
