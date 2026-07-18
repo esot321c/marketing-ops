@@ -65,8 +65,26 @@ function nearestRanked(
   return null;
 }
 
-// Computes the new `order` for an item dragged within its own column, or
-// `null` when the drop does not actually move the item.
+// True when no item in the column has a stored `order` yet. This is the
+// real first-touch state of every existing tenant board: items predate the
+// `order` field, so the column is entirely unranked until its first
+// reorder. In this case neither nearestRanked walk (from either side of the
+// drop) finds an anchor, so there is no ranked neighbor to take a midpoint
+// against, and there is no single numeric value that can place the moved
+// item between two specific still-unranked siblings: unranked items always
+// sort after ranked ones, and among themselves break ties by id rather than
+// by any number. The only correct fix is a one-time normalization: assign
+// gap-spaced integer orders to every item in the column, in the order the
+// board is currently displaying them (id order, since none are ranked yet),
+// then slot the moved item at its dropped position among those values. That
+// upgrades the whole column into the clean all-ranked regime, so every
+// subsequent reorder is an ordinary single-item write.
+function isAllUnranked(column: { order?: number }[]): boolean {
+  return column.every((i) => typeof i.order !== "number");
+}
+
+// Computes the `{ id, order }` writes needed for an item dragged within its
+// own column, or `null` when the drop does not actually move the item.
 //
 // `items` is the column in its CURRENT DISPLAYED order (the order
 // orderedColumn already renders, mixing real `order` values and legacy
@@ -79,19 +97,27 @@ function nearestRanked(
 // ranked item on that side, since that is the only neighbor that can
 // constrain where the moved item's numeric order needs to fall; unranked
 // neighbors are already correctly positioned relative to any number the
-// moved item receives. Only the moved item is written; other items keep
-// their existing (or absent) order and get a real one lazily on their own
-// next move.
+// moved item receives. Ordinarily only the moved item is written; other
+// items keep their existing (or absent) order and get a real one lazily on
+// their own next move. The one exception is the all-unranked column
+// (see isAllUnranked), which returns a write for every item as a one-time
+// normalization.
 export function computeReorder(
   items: { id: string; order?: number }[],
   draggedId: string,
   dropIndex: number,
-): number | null {
+): { id: string; order: number }[] | null {
   const draggedIndex = items.findIndex((i) => i.id === draggedId);
   const remaining = items.filter((i) => i.id !== draggedId);
   const adjustedIndex = draggedIndex !== -1 && draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
 
   if (draggedIndex !== -1 && adjustedIndex === draggedIndex) return null;
+
+  if (isAllUnranked(items)) {
+    const reordered = [...remaining];
+    reordered.splice(adjustedIndex, 0, items[draggedIndex]!);
+    return reordered.map((item, i) => ({ id: item.id, order: (i + 1) * ORDER_GAP }));
+  }
 
   const immediateBefore = remaining[adjustedIndex - 1];
   const immediateAfter = remaining[adjustedIndex];
@@ -99,10 +125,10 @@ export function computeReorder(
     immediateBefore && immediateAfter &&
     typeof immediateBefore.order === "number" && typeof immediateAfter.order === "number"
   ) {
-    return insertOrder(immediateBefore, immediateAfter);
+    return [{ id: draggedId, order: insertOrder(immediateBefore, immediateAfter) }];
   }
 
   const before = nearestRanked(remaining, adjustedIndex - 1, -1);
   const after = nearestRanked(remaining, adjustedIndex, 1);
-  return insertOrder(before, after);
+  return [{ id: draggedId, order: insertOrder(before, after) }];
 }

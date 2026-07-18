@@ -208,6 +208,42 @@ test("dropping a ranked item into a gap between two legacy unordered neighbors k
   expect(rows.map((r) => r.id)).toEqual(["a", "b", "x", "y"]);
 });
 
+test("dropping an item in a column where no item has a stored order yet normalizes the whole column and lands the item at the dropped slot", async () => {
+  // Every existing tenant board is in this state before its first reorder:
+  // no item has an `order`, so orderedColumn displays them by id. Drag "a"
+  // to the end; the resulting displayed order must be b, c, a, not a jump
+  // to the front.
+  const a = makeItem("a", "idea", "A");
+  const b = makeItem("b", "idea", "B");
+  const c = makeItem("c", "idea", "C");
+  const board = { ...emptyBoard(), idea: [a, b, c] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(setItemOrder).mockImplementation(async (_tenant, id, order) =>
+    ({ ok: true, item: { ...a, id, order } }));
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("A");
+
+  const dropSlot = screen.getByTestId("dropslot-idea-3");
+  const dataTransfer = {
+    getData: (key: string) => (key === "application/x-item-id" ? "a" : "idea"),
+  };
+  fireEvent.drop(dropSlot, { dataTransfer });
+
+  await waitFor(() => {
+    expect(setItemOrder).toHaveBeenCalledTimes(3);
+  });
+  const writes = new Map(
+    vi.mocked(setItemOrder).mock.calls.map(([, id, order]) => [id, order as number]),
+  );
+  const resorted = [
+    { id: "a", order: writes.get("a") },
+    { id: "b", order: writes.get("b") },
+    { id: "c", order: writes.get("c") },
+  ].sort((p, q) => p.order! - q.order!).map((r) => r.id);
+  expect(resorted).toEqual(["b", "c", "a"]);
+});
+
 test("dropping an item back onto its own slot is a no-op and does not call setItemOrder", async () => {
   const first = makeItem("idea-1", "idea", "First idea", 10);
   const second = makeItem("idea-2", "idea", "Second idea", 20);

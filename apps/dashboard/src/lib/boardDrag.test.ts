@@ -74,8 +74,10 @@ test("insertOrder anchors off the ordered neighbor when the other lacks one", ()
 
 // computeReorder takes the column's items in CURRENT DISPLAYED order (as
 // orderedColumn already renders them), the id of the dragged item, and the
-// pre-removal drop index, and returns the new order value for the dragged
-// item, or null when the drop is a no-op.
+// pre-removal drop index, and returns the list of { id, order } writes needed
+// to realize the drop, or null when the drop is a no-op. Ordinary drops in a
+// column that already has a ranked neighbor on one side of the slot need
+// only write the moved item, so the array has a single entry.
 
 test("computeReorder places the moved item between two neighbors that both already have an order", () => {
   const items = [
@@ -84,9 +86,11 @@ test("computeReorder places the moved item between two neighbors that both alrea
     { id: "c", order: 30 },
   ];
   // Drag "a" to between "b" and "c" (drop index 2 in the pre-removal array).
-  const result = computeReorder(items, "a", 2);
-  expect(result).not.toBeNull();
-  const resorted = sortDisplayed([...items.filter((i) => i.id !== "a"), { id: "a", order: result! }]).map((i) => i.id);
+  const writes = computeReorder(items, "a", 2);
+  expect(writes).not.toBeNull();
+  expect(writes).toHaveLength(1);
+  const byId = new Map(writes!.map((w) => [w.id, w.order]));
+  const resorted = sortDisplayed([...items.filter((i) => i.id !== "a"), { id: "a", order: byId.get("a")! }]).map((i) => i.id);
   expect(resorted).toEqual(["b", "a", "c"]);
 });
 
@@ -102,9 +106,11 @@ test("computeReorder gives a moved ordered item a value that still sorts ahead o
     { id: "x" },
     { id: "y" },
   ];
-  const result = computeReorder(items, "b", 3);
-  expect(result).not.toBeNull();
-  const resorted = sortDisplayed([...items.filter((i) => i.id !== "b"), { id: "b", order: result! }]).map((i) => i.id);
+  const writes = computeReorder(items, "b", 3);
+  expect(writes).not.toBeNull();
+  expect(writes).toHaveLength(1);
+  const byId = new Map(writes!.map((w) => [w.id, w.order]));
+  const resorted = sortDisplayed([...items.filter((i) => i.id !== "b"), { id: "b", order: byId.get("b")! }]).map((i) => i.id);
   expect(resorted).toEqual(["a", "b", "x", "y"]);
 });
 
@@ -117,9 +123,11 @@ test("computeReorder sorts a moved unordered (legacy) item to sit between two or
     { id: "x" },
     { id: "y" },
   ];
-  const result = computeReorder(items, "y", 1);
-  expect(result).not.toBeNull();
-  const resorted = sortDisplayed([...items.filter((i) => i.id !== "y"), { id: "y", order: result! }]).map((i) => i.id);
+  const writes = computeReorder(items, "y", 1);
+  expect(writes).not.toBeNull();
+  expect(writes).toHaveLength(1);
+  const byId = new Map(writes!.map((w) => [w.id, w.order]));
+  const resorted = sortDisplayed([...items.filter((i) => i.id !== "y"), { id: "y", order: byId.get("y")! }]).map((i) => i.id);
   expect(resorted).toEqual(["a", "y", "b", "x"]);
 });
 
@@ -144,4 +152,44 @@ test("computeReorder returns null when dropped at the end but the item is alread
     { id: "b", order: 20 },
   ];
   expect(computeReorder(items, "b", 2)).toBeNull();
+});
+
+// First-touch case: no item in the column has a stored `order` yet (the real
+// state of every existing tenant board before its first reorder). Neither
+// nearestRanked walk finds an anchor, so there is no ranked neighbor to take
+// a midpoint against. Dropping the moved item among still-unranked siblings
+// can only be expressed by giving every item in the column a fresh
+// gap-spaced order in its current displayed order (id order, since none are
+// ranked), because unranked items always sort after ranked ones and by id
+// among themselves. That means a first-touch reorder is a one-time
+// normalization: it returns a write for every item in the column, not just
+// the moved one.
+
+test("computeReorder normalizes an all-unordered column when dragging to the end", () => {
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  const writes = computeReorder(items, "a", 3);
+  expect(writes).not.toBeNull();
+  const byId = new Map(writes!.map((w) => [w.id, w.order]));
+  expect(byId.size).toBe(3);
+  const resorted = sortDisplayed(items.map((i) => ({ id: i.id, order: byId.get(i.id) }))).map((i) => i.id);
+  expect(resorted).toEqual(["b", "c", "a"]);
+});
+
+test("computeReorder normalizes an all-unordered column when dragging to the middle", () => {
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  // Drop "a" between "b" and "c" (drop index 2 in the pre-removal array).
+  const writes = computeReorder(items, "a", 2);
+  expect(writes).not.toBeNull();
+  const byId = new Map(writes!.map((w) => [w.id, w.order]));
+  const resorted = sortDisplayed(items.map((i) => ({ id: i.id, order: byId.get(i.id) }))).map((i) => i.id);
+  expect(resorted).toEqual(["b", "a", "c"]);
+});
+
+test("computeReorder normalizes a 2-item all-unordered column when dragging to the end", () => {
+  const items = [{ id: "a" }, { id: "b" }];
+  const writes = computeReorder(items, "a", 2);
+  expect(writes).not.toBeNull();
+  const byId = new Map(writes!.map((w) => [w.id, w.order]));
+  const resorted = sortDisplayed(items.map((i) => ({ id: i.id, order: byId.get(i.id) }))).map((i) => i.id);
+  expect(resorted).toEqual(["b", "a"]);
 });

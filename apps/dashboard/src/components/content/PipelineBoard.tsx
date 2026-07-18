@@ -80,12 +80,15 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
 
     if (source === target) {
       // data[target] is already in displayed order (orderedColumn); index is
-      // the drop-slot position in that same pre-removal array.
-      const order = computeReorder(data[target], id, index);
-      if (order === null) return;
+      // the drop-slot position in that same pre-removal array. Ordinarily
+      // computeReorder returns a single write for the moved item, but the
+      // first-touch all-unranked column returns one write per item (a
+      // one-time normalization), so every write in the list is applied.
+      const writes = computeReorder(data[target], id, index);
+      if (writes === null) return;
       setActionError(null);
       try {
-        await setItemOrder(tenant, id, order);
+        await Promise.all(writes.map((w) => setItemOrder(tenant, w.id, w.order)));
         reload();
       } catch (err) {
         setActionError(err instanceof Error ? err.message : String(err));
