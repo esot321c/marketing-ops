@@ -16,6 +16,8 @@ const LABELS: Record<ContentState, string> = {
   scheduled: "Scheduled",
   posted: "Posted",
   measured: "Measured",
+  needs_work: "Needs work",
+  parked: "Parked",
 };
 
 export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id: string) => void }) {

@@ -41,7 +41,7 @@ const ASSET_CONTENT_TYPES: Record<string, string> = {
   ".svg": "image/svg+xml",
   ".pdf": "application/pdf",
 };
-const CONTENT_STATES = new Set(["idea", "drafting", "in_review", "approved", "scheduled", "posted", "measured"]);
+const CONTENT_STATES = new Set(["idea", "drafting", "in_review", "approved", "scheduled", "posted", "measured", "needs_work", "parked"]);
 
 async function readItems(tenant: string) {
   const dir = resolveContentDir(tenant);

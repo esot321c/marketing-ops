@@ -41,6 +41,8 @@ function emptyBoard(): Record<ContentState, ContentItem[]> {
     scheduled: [],
     posted: [],
     measured: [],
+    needs_work: [],
+    parked: [],
   };
 }
 

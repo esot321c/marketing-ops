@@ -42,6 +42,11 @@ test("validateContentItem accepts channel x", () => {
   expect(validateContentItem({ ...item, channel: "x" })).toBe(true);
 });
 
+test("validateContentItem accepts the needs_work and parked states", () => {
+  expect(validateContentItem({ ...item, state: "needs_work" })).toBe(true);
+  expect(validateContentItem({ ...item, state: "parked" })).toBe(true);
+});
+
 test("validateContentItem accepts an optional string caption", () => {
   expect(validateContentItem({ ...item, caption: "The post body" })).toBe(true);
   expect(validateContentItem({ ...item, caption: undefined })).toBe(true);

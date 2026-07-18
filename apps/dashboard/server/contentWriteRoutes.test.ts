@@ -92,6 +92,28 @@ test("POST state preserves an existing caption", async () => {
   expect(saved.state).toBe("approved");
 });
 
+test("POST state accepts the needs_work and parked states", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "s2.json"), JSON.stringify({
+    id: "s2", tenantId: "write-test-agency", channel: "linkedin", format: "text-post",
+    state: "in_review", title: "T", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const toNeedsWork = await app.request("/api/content/write-test-agency/s2/state", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to: "needs_work" }),
+  });
+  expect(toNeedsWork.status).toBe(200);
+  const toParked = await app.request("/api/content/write-test-agency/s2/state", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to: "parked" }),
+  });
+  expect(toParked.status).toBe(200);
+  const saved = JSON.parse(await readFile(path.join(itemsDir, "s2.json"), "utf8"));
+  expect(saved.state).toBe("parked");
+});
+
 test("POST run for refine includes the queued note in the instruction", async () => {
   const itemsDir = path.join(dir, "items");
   await mkdir(itemsDir, { recursive: true });

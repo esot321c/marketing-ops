@@ -1,7 +1,8 @@
 export type Channel = "linkedin" | "blog" | "tiktok" | "instagram" | "x";
 export type Format = "text-post" | "blog-post" | "carousel" | "image-post" | "short-video";
 export type ContentState =
-  | "idea" | "drafting" | "in_review" | "approved" | "scheduled" | "posted" | "measured";
+  | "idea" | "drafting" | "in_review" | "approved" | "scheduled" | "posted" | "measured"
+  | "needs_work" | "parked";
 
 export type AssetKind = "copy" | "blog-body" | "carousel-visual" | "image" | "video";
 export type AssetRoute = "local-harness" | "external-tool";
@@ -108,6 +109,7 @@ export type AgentAction = "fulfil-request" | "draft-suggestion" | "refine" | "ap
 
 const STATES: ReadonlySet<string> = new Set<ContentState>([
   "idea", "drafting", "in_review", "approved", "scheduled", "posted", "measured",
+  "needs_work", "parked",
 ]);
 
 const CHANNELS: ReadonlySet<string> = new Set<Channel>([
