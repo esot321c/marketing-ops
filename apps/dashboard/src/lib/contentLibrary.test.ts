@@ -1,7 +1,7 @@
 import { test, expect } from "vitest";
 import {
   parseItems, filterByState, boardIndex, activeCount, orderedColumn,
-  PARKED_STATES, ALL_BOARD_STATES,
+  PARKED_STATES, ALL_BOARD_STATES, COLUMN_COLORS, reconcileBoardPrefs,
 } from "./contentLibrary.js";
 import type { ContentItem } from "./contentTypes.js";
 
@@ -97,4 +97,44 @@ test("boardIndex returns each bucket already ordered", () => {
     make("c", "idea", 5), make("a", "idea"), make("b", "idea", 1),
   ]));
   expect(idx.idea.map((i) => i.id)).toEqual(["b", "c", "a"]);
+});
+
+test("COLUMN_COLORS has the expected named tokens", () => {
+  for (const token of ["default", "slate", "red", "amber", "green", "blue", "purple", "teal"]) {
+    expect(COLUMN_COLORS[token]).toEqual(expect.any(String));
+  }
+});
+
+test("reconcileBoardPrefs drops invalid state entries and dedupes", () => {
+  const result = reconcileBoardPrefs({
+    columnOrder: ["idea", "bogus", "idea", "approved"] as never,
+  });
+  expect(result.columnOrder.filter((s) => s === "idea")).toHaveLength(1);
+  expect(result.columnOrder).not.toContain("bogus");
+});
+
+test("reconcileBoardPrefs appends every missing ContentState in ALL_BOARD_STATES order", () => {
+  const result = reconcileBoardPrefs({ columnOrder: ["approved", "idea"] });
+  expect(result.columnOrder).toEqual([
+    "approved", "idea", "drafting", "in_review", "scheduled", "posted", "measured",
+    "needs_work", "parked",
+  ]);
+});
+
+test("reconcileBoardPrefs renders every column exactly once even from an empty saved order", () => {
+  const result = reconcileBoardPrefs({ columnOrder: [] });
+  expect(result.columnOrder).toEqual(ALL_BOARD_STATES);
+});
+
+test("reconcileBoardPrefs strips columnColors entries with an invalid state or an out-of-palette color", () => {
+  const result = reconcileBoardPrefs({
+    columnOrder: ALL_BOARD_STATES,
+    columnColors: { idea: "blue", bogus: "red", approved: "not-a-color" } as never,
+  });
+  expect(result.columnColors).toEqual({ idea: "blue" });
+});
+
+test("reconcileBoardPrefs defaults columnColors to an empty object when absent", () => {
+  const result = reconcileBoardPrefs({ columnOrder: ALL_BOARD_STATES });
+  expect(result.columnColors).toEqual({});
 });

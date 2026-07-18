@@ -165,6 +165,12 @@ export function resolveContentFile(tenantId: string, name: string): string | nul
   return path.join(dir, name);
 }
 
+export function resolveBoardPrefsFile(tenantId: string): string | null {
+  const dir = resolveContentDir(tenantId);
+  if (!dir) return null;
+  return path.join(dir, "board-prefs.json");
+}
+
 export function resolveWorkTypeDir(tenantId: string, type: string): string | null {
   const tenantRoot = resolveTenantRoot(tenantId);
   if (!tenantRoot || !isCapabilityId(type)) return null;

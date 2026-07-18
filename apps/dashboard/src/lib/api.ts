@@ -1,6 +1,7 @@
 import type { InitState, TenantSummary, ProfileSpec, WorkArtifactSummary, WorkArtifact, WorkCounts } from "@/lib/types";
 import type { DesignTokens } from "@/design-system/types";
 import type { ContentItem, ContentState, RunMode, AgentAction, Learning, Cadence } from "@/lib/contentTypes";
+import type { BoardPrefs } from "@/lib/contentLibrary";
 import type { Suggestion } from "@/lib/planner";
 import type { AnalyticsData } from "@/lib/analyticsTypes";
 
@@ -143,6 +144,16 @@ export function getToday(tenant: string) {
 
 export function getCadence(tenant: string) {
   return jsonRequest<Cadence>(`/api/content/${encodeURIComponent(tenant)}/cadence`);
+}
+
+export function getBoardPrefs(tenant: string) {
+  return jsonRequest<BoardPrefs>(`/api/content/${encodeURIComponent(tenant)}/board-prefs`);
+}
+
+export function setBoardPrefs(tenant: string, prefs: BoardPrefs) {
+  return jsonRequest<BoardPrefs>(`/api/content/${encodeURIComponent(tenant)}/board-prefs`, {
+    method: "POST", body: JSON.stringify(prefs),
+  });
 }
 
 export function getItem(tenant: string, id: string) {

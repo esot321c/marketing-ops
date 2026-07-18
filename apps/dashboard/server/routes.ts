@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { spawn } from "node:child_process";
-import { mkdir, writeFile, appendFile, readFile, readdir } from "node:fs/promises";
+import { mkdir, writeFile, appendFile, readFile, readdir, rename } from "node:fs/promises";
 import path from "node:path";
 import { listTenants, tenantExists } from "../src/lib/tenantRegistry.js";
 import { readInitState, writeInitState } from "../src/lib/setupStore.js";
@@ -19,10 +19,11 @@ import {
   resolveContentRequestPath,
   resolveContentAssetPath,
   resolveContentAssetDir,
+  resolveBoardPrefsFile,
 } from "../src/lib/setupPaths.js";
 import { isValidTenantId } from "../src/lib/setupPaths.js";
 import { readAnalytics } from "./analyticsStore.js";
-import { parseItems, boardIndex } from "../src/lib/contentLibrary.js";
+import { parseItems, boardIndex, ALL_BOARD_STATES, COLUMN_COLORS, reconcileBoardPrefs, type BoardPrefs } from "../src/lib/contentLibrary.js";
 import { todayView } from "../src/lib/planner.js";
 import { parseLearnings, pendingFirst, decide } from "../src/lib/learnings.js";
 import { detectPosture, availableModes } from "../src/lib/runModes.js";
@@ -60,6 +61,29 @@ async function readCadence(tenant: string): Promise<Cadence | null> {
   const raw = await readFile(file, "utf8").catch(() => null);
   if (raw === null) return null;
   try { return JSON.parse(raw) as Cadence; } catch { return null; }
+}
+
+async function readBoardPrefs(tenant: string): Promise<BoardPrefs> {
+  const defaults: BoardPrefs = { columnOrder: ALL_BOARD_STATES, columnColors: {} };
+  const file = resolveBoardPrefsFile(tenant);
+  if (!file) return defaults;
+  const raw = await readFile(file, "utf8").catch(() => null);
+  if (raw === null) return defaults;
+  try {
+    const parsed = JSON.parse(raw) as { columnOrder?: unknown[]; columnColors?: Record<string, unknown> };
+    if (!Array.isArray(parsed.columnOrder)) return defaults;
+    return reconcileBoardPrefs({ columnOrder: parsed.columnOrder, columnColors: parsed.columnColors });
+  } catch {
+    return defaults;
+  }
+}
+
+async function writeBoardPrefs(tenant: string, prefs: BoardPrefs): Promise<void> {
+  const file = resolveBoardPrefsFile(tenant)!;
+  await mkdir(path.dirname(file), { recursive: true });
+  const tmpFile = `${file}.tmp`;
+  await writeFile(tmpFile, JSON.stringify(prefs, null, 2) + "\n", "utf8");
+  await rename(tmpFile, file);
 }
 
 async function tenantName(tenant: string): Promise<string> {
@@ -248,6 +272,34 @@ export function registerRoutes(app: Hono) {
     if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
     const cadence = (await readCadence(tenant)) ?? { tenantId: tenant, perWeek: {}, engagement: "", pillars: [], updatedBy: [] };
     return c.json(cadence);
+  });
+
+  app.get("/api/content/:tenant/board-prefs", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    return c.json(await readBoardPrefs(tenant));
+  });
+
+  app.post("/api/content/:tenant/board-prefs", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    const body = await c.req.json<{ columnOrder?: unknown; columnColors?: Record<string, unknown> }>().catch(() => null);
+    if (!body || !Array.isArray(body.columnOrder)) return c.text("Missing or invalid columnOrder", 400);
+    if (body.columnColors !== undefined) {
+      if (typeof body.columnColors !== "object" || body.columnColors === null) {
+        return c.text("Invalid columnColors", 400);
+      }
+      for (const [state, color] of Object.entries(body.columnColors)) {
+        if (!(ALL_BOARD_STATES as string[]).includes(state)) return c.text("Unknown state in columnColors", 400);
+        if (typeof color !== "string" || !(color in COLUMN_COLORS)) return c.text("Unknown color in columnColors", 400);
+      }
+    }
+    const reconciled = reconcileBoardPrefs({
+      columnOrder: body.columnOrder,
+      columnColors: body.columnColors,
+    });
+    await writeBoardPrefs(tenant, reconciled);
+    return c.json(reconciled);
   });
 
   app.get("/api/content/:tenant/run-modes", async (c) => {
