@@ -98,6 +98,40 @@
   border-radius: 18px;
   overflow: hidden;
 }
+
+/* Themed scrollbars, so scroll regions read as part of the workspace rather
+   than the OS chrome. Firefox uses the two-value scrollbar-color (thumb track);
+   WebKit/Blink use the pseudo-elements. Both track the light/dark theme. */
+.ws,
+.ws * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+}
+.ws ::-webkit-scrollbar,
+.ws::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.ws ::-webkit-scrollbar-track,
+.ws::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ws ::-webkit-scrollbar-thumb,
+.ws::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.ws ::-webkit-scrollbar-thumb:hover,
+.ws::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+  background-clip: padding-box;
+}
+.ws ::-webkit-scrollbar-corner,
+.ws::-webkit-scrollbar-corner {
+  background: transparent;
+}
 .ws-serif { font-family: var(--ws-display); }
 .ws-mono { font-family: var(--ws-mono); }
 .ws-ink { color: var(--ws-ink); }
