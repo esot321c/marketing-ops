@@ -194,6 +194,34 @@ test("POST run for refine includes the queued note in the instruction", async ()
   expect(body.instruction).toContain('Queued refine note: "make it punchier"');
 });
 
+test("DELETE item removes the item file and returns ok", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  const itemFile = path.join(itemsDir, "del1.json");
+  await writeFile(itemFile, JSON.stringify({
+    id: "del1", tenantId: "write-test-agency", channel: "linkedin", format: "text-post",
+    state: "in_review", title: "T", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+  const res = await app.request("/api/content/write-test-agency/del1", { method: "DELETE" });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { ok: boolean };
+  expect(body.ok).toBe(true);
+  await expect(readFile(itemFile, "utf8")).rejects.toThrow();
+});
+
+test("DELETE item for an unknown id returns the same not-found shape as state", async () => {
+  const res = await app.request("/api/content/write-test-agency/no-such-item", { method: "DELETE" });
+  expect(res.status).toBe(400);
+  expect(await res.text()).toBe("Not found");
+});
+
+test("DELETE item for an unknown tenant returns 404", async () => {
+  const res = await app.request("/api/content/no-such-tenant/del1", { method: "DELETE" });
+  expect(res.status).toBe(404);
+  expect(await res.text()).toBe("Unknown tenant");
+});
+
 test("POST run for refine states when no note is queued", async () => {
   const itemsDir = path.join(dir, "items");
   await mkdir(itemsDir, { recursive: true });

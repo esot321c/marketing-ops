@@ -1,5 +1,5 @@
 import { test, expect, vi, afterEach } from "vitest";
-import { getBoardPrefs, setBoardPrefs } from "./api.js";
+import { getBoardPrefs, setBoardPrefs, deleteItem } from "./api.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -42,4 +42,17 @@ test("setBoardPrefs posts columnOrder and columnColors to the board-prefs endpoi
       body: JSON.stringify({ columnOrder: ["idea"], columnColors: {} }),
     })
   );
+});
+
+test("deleteItem sends a DELETE request to the item's endpoint", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const result = await deleteItem("example-agency", "item-1");
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/content/example-agency/item-1",
+    expect.objectContaining({ method: "DELETE" })
+  );
+  expect(result).toEqual({ ok: true });
 });

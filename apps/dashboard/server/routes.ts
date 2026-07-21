@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { spawn } from "node:child_process";
-import { mkdir, writeFile, appendFile, readFile, readdir, rename } from "node:fs/promises";
+import { mkdir, writeFile, appendFile, readFile, readdir, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 import { listTenants, tenantExists } from "../src/lib/tenantRegistry.js";
 import { readInitState, writeInitState } from "../src/lib/setupStore.js";
@@ -359,6 +359,17 @@ export function registerRoutes(app: Hono) {
     item.order = body.order;
     await writeFile(file, JSON.stringify(item, null, 2), "utf8");
     return c.json({ ok: true, item });
+  });
+
+  app.delete("/api/content/:tenant/:id", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    const file = resolveContentItemPath(tenant, c.req.param("id"));
+    if (!file) return c.text("Bad id", 400);
+    const raw = await readFile(file, "utf8").catch(() => null);
+    if (raw === null) return c.text("Not found", 400);
+    await unlink(file);
+    return c.json({ ok: true });
   });
 
   app.post("/api/content/:tenant/:id/refine", async (c) => {

@@ -176,6 +176,10 @@ export function postState(tenant: string, id: string, to: ContentState, date?: s
   return jsonRequest<{ ok: boolean; item: ContentItem }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/state`, { method: "POST", body: JSON.stringify({ to, date }) });
 }
 
+export function deleteItem(tenant: string, id: string) {
+  return jsonRequest<{ ok: boolean }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export function setItemOrder(tenant: string, id: string, order: number) {
   return jsonRequest<{ ok: boolean; item: ContentItem }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/order`, { method: "POST", body: JSON.stringify({ order }) });
 }
