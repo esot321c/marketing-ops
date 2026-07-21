@@ -299,7 +299,11 @@
    own scroll region and each column handle scrolling. Trim the bottom padding
    so the horizontal scrollbar sits near the bottom of the screen with only a
    small gap below the columns, instead of floating above main's full padding. */
-.ws-main:has(.ws-board-page) { overflow-y: hidden; padding-bottom: 10px; }
+/* Drop main's bottom padding to 0 for board views so the board scroll region
+   reaches the very bottom of the screen; that is where the horizontal scrollbar
+   sits. The gap the user wants goes ABOVE the scrollbar (between the columns and
+   the scrollbar), via .ws-board-row's bottom margin, not below it. */
+.ws-main:has(.ws-board-page) { overflow-y: hidden; padding-bottom: 0; }
 /* The board page is a flex column filling main; its header is fixed and the
    board scroll region takes the rest (so columns are full height and the
    horizontal scrollbar sits at the bottom, no page overflow). */
@@ -498,7 +502,11 @@
   display: flex;
   gap: 12px;
   align-items: stretch;
-  height: 100%;
+  /* Leave 100% minus the gap so the columns stop 10px short of the scroll
+     container's bottom, putting a small gap between the pipes and the
+     horizontal scrollbar (which draws at the container's actual bottom). */
+  height: calc(100% - 10px);
+  margin-bottom: 10px;
 }
 .ws-board-col {
   flex: 0 0 auto;
