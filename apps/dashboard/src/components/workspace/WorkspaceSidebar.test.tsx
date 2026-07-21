@@ -26,6 +26,21 @@ test("ready mode shows Content group with Today", () => {
   const steps = setupSteps(state(() => "approved"));
   renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" hrefFor={hrefFor} composerEnabled={false} />);
   expect(screen.getByText("Today")).toBeTruthy();
+});
+
+test("ready mode folds Work, Tune, and Setup by default; expanding Setup reveals its steps", () => {
+  const steps = setupSteps(state(() => "approved"));
+  renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" hrefFor={hrefFor} composerEnabled={false} />);
+  // Setup is folded on load, so its steps are not rendered.
+  expect(screen.queryByText("Brand & design")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Setup/i }));
+  expect(screen.getByText("Brand & design")).toBeTruthy();
+});
+
+test("ready mode keeps a group open on load when it holds the active section", () => {
+  const steps = setupSteps(state(() => "approved"));
+  // Active section is a setup stage, so the Setup group must be open without a click.
+  renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="design-system" hrefFor={hrefFor} composerEnabled={false} />);
   expect(screen.getByText("Brand & design")).toBeTruthy();
 });
 
@@ -36,13 +51,16 @@ test("enabled nav items are links that carry the tenant query", () => {
   expect(today.getAttribute("href")).toBe("/today?tenant=t");
 });
 
-test("ready mode shows the Work group with a Campaigns link and an Ask link", () => {
+test("ready mode: Ask is always visible; the Work group reveals Campaigns when expanded", () => {
   const steps = setupSteps(state(() => "approved"));
   renderSidebar(<WorkspaceSidebar mode="ready" tenantName="Example Tenant" steps={steps} section="today" hrefFor={hrefFor} composerEnabled={false} />);
-  const campaigns = screen.getByRole("link", { name: /Campaigns/i }) as HTMLAnchorElement;
-  expect(campaigns.getAttribute("href")).toBe("/campaigns?tenant=t");
   const ask = screen.getByRole("link", { name: /Ask/i }) as HTMLAnchorElement;
   expect(ask.getAttribute("href")).toBe("/ask?tenant=t");
+  // Work is folded by default.
+  expect(screen.queryByRole("link", { name: /Campaigns/i })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Work/i }));
+  const campaigns = screen.getByRole("link", { name: /Campaigns/i }) as HTMLAnchorElement;
+  expect(campaigns.getAttribute("href")).toBe("/campaigns?tenant=t");
 });
 
 test("ready mode marks an outstanding prep capability as to do, but not other Work items", () => {
@@ -58,6 +76,7 @@ test("ready mode marks an outstanding prep capability as to do, but not other Wo
       outstanding={new Set(["research"])}
     />
   );
+  fireEvent.click(screen.getByRole("button", { name: /Work/i }));
   const research = screen.getByRole("link", { name: /Research/i });
   expect(within(research).getByText("to do")).toBeTruthy();
   const campaigns = screen.getByRole("link", { name: /Campaigns/i });
