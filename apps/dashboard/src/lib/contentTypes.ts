@@ -172,6 +172,20 @@ export function isItemReady(item: ContentItem): boolean {
   return item.assets.length > 0 && item.assets.every((a) => a.status === "ready");
 }
 
+const CHANNEL_LABELS: Record<Exclude<Channel, "blog">, string> = {
+  linkedin: "LinkedIn",
+  x: "X",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+};
+
+export function channelLabel(channel: string, siteDomain?: string): string {
+  if (channel === "blog") {
+    return siteDomain && siteDomain.length > 0 ? siteDomain : "Blog";
+  }
+  return CHANNEL_LABELS[channel as Exclude<Channel, "blog">] ?? channel;
+}
+
 export function effectiveFormat(item: ContentItem): Format {
   if (item.format === "short-video" || item.assets.some((a) => a.kind === "video")) {
     return "short-video";

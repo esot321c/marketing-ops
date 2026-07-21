@@ -5,7 +5,7 @@ import { useLiveData } from "@/hooks/useLiveData";
 import { ALL_BOARD_STATES, COLUMN_COLORS, type BoardPrefs } from "@/lib/contentLibrary";
 import { computeReorder, dropArgs, reorderList } from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
-import { effectiveFormat } from "@/lib/contentTypes";
+import { channelLabel, effectiveFormat } from "@/lib/contentTypes";
 import { IdeaReviewPopup } from "./IdeaReviewPopup";
 import {
   DropdownMenu,
@@ -377,8 +377,10 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                             onClick={() => handleCardClick(state, i)}
                           >
                             <div className="ws-ink ws-board-card-title" style={{ paddingRight: 20 }}>{i.title}</div>
-                            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                               <span className="ws-pill ws-pill-mono">{effectiveFormat(i)}</span>
+                              <span className="ws-slate" aria-hidden="true">&middot;</span>
+                              <span className="ws-pill ws-pill-mono">{channelLabel(i.channel)}</span>
                             </div>
                           </button>
                           <CardMenu

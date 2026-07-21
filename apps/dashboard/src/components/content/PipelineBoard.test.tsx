@@ -358,6 +358,31 @@ test("the board wrapper scrolls horizontally and column bodies scroll vertically
   expect(container.querySelectorAll(".ws-board-colbody").length).toBe(9);
 });
 
+test("a card shows its channel label next to the format pill", async () => {
+  const xItem = makeItem("x-1", "drafting", "X post title");
+  xItem.channel = "x";
+  const board = { ...emptyBoard(), drafting: [xItem] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+
+  await screen.findByText("X post title");
+  expect(screen.getByText("X")).toBeTruthy();
+});
+
+test("a blog card falls back to the Blog label with no domain wired through", async () => {
+  const blogItem = makeItem("blog-1", "drafting", "Blog post title");
+  blogItem.channel = "blog";
+  blogItem.format = "blog-post";
+  const board = { ...emptyBoard(), drafting: [blogItem] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+
+  await screen.findByText("Blog post title");
+  expect(screen.getByText("Blog")).toBeTruthy();
+});
+
 test("clicking an idea card opens the review popup instead of navigating", async () => {
   const ideaItem = makeItem("idea-1", "idea", "Idea title");
   const board = { ...emptyBoard(), idea: [ideaItem] };
