@@ -105,6 +105,7 @@ export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, co
           {"«"}
         </button>
       </div>
+      <div className="ws-side-body">
       <div className="ws-kicker">{guided ? `Setting up · ${done} of ${steps.length}` : "Content motion"}</div>
       {guided ? (
         <div className="pbar" style={{ height: 4, background: "var(--ws-band)", borderRadius: 2, margin: "6px 10px 0", overflow: "hidden" }}>
@@ -176,6 +177,7 @@ export function WorkspaceSidebar({ mode, tenantName, steps, section, hrefFor, co
           </p>
         </>
       ) : null}
+      </div>
     </nav>
   );
 }

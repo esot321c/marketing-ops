@@ -147,7 +147,22 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  /* Bounded by the grid cell (ws-fill is fixed height). The head stays fixed;
+     only ws-side-body scrolls, so the collapse toggle is always visible. */
   overflow: hidden;
+}
+.ws-side-head {
+  flex: 0 0 auto;
+  align-items: flex-start;
+}
+.ws-side-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .ws-side-collapsed {
   padding: 20px 6px;
@@ -155,7 +170,7 @@
 }
 .ws-side-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
@@ -241,7 +256,22 @@
   padding: 0 8px;
 }
 
-.ws-main { padding: 26px 30px; min-width: 0; }
+.ws-main {
+  padding: 26px 30px;
+  min-width: 0;
+  /* Own our vertical overflow so tall content scrolls inside main, not the page.
+     Board views override to a non-scrolling flex column (see .ws-main-board). */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+/* The board page fills main and does not scroll vertically itself; the board's
+   own scroll region and each column handle scrolling. */
+.ws-main:has(.ws-board-page) { overflow-y: hidden; }
+/* The board page is a flex column filling main; its header is fixed and the
+   board scroll region takes the rest (so columns are full height and the
+   horizontal scrollbar sits at the bottom, no page overflow). */
+.ws-board-page { flex: 1 1 0; min-height: 0; height: 100%; }
 .ws-h1 {
   font-family: var(--ws-display);
   font-weight: 800;
@@ -380,7 +410,18 @@
 }
 
 /* Full-bleed workspace: fills below the slim product bar, no floating island. */
-.ws-fill { border: none; border-radius: 0; min-height: calc(100dvh - 49px); }
+/* Fill exactly the space under the app header, and cap there, so the two grid
+   cells (sidebar, main) each own their own overflow and the page itself never
+   scrolls. --ws-app-header is the app header height (default 49px). */
+.ws-fill {
+  border: none;
+  border-radius: 0;
+  height: calc(100dvh - var(--ws-app-header, 57px));
+  min-height: 0;
+  overflow: hidden;
+}
+.ws-fill > .ws-side,
+.ws-fill > .ws-main { min-height: 0; height: 100%; }
 
 /* Guided step header */
 .ws-stephead { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--ws-line); padding-bottom: 16px; margin-bottom: 20px; }
@@ -414,17 +455,26 @@
   overflow-x: auto;
   overflow-y: hidden;
   max-width: 100%;
-  padding-bottom: 4px;
+  /* Fill the remaining space inside main below the board title, so columns are
+     full height and the horizontal scrollbar sits at the bottom with no gap.
+     flex-basis 0 (not auto) makes this take leftover height instead of growing
+     to its content; min-height 0 lets it shrink below content so it scrolls. */
+  flex: 1 1 0;
+  min-height: 0;
 }
 .ws-board-row {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: stretch;
+  height: 100%;
 }
 .ws-board-col {
   flex: 0 0 auto;
   width: 260px;
   min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .ws-board-colhead {
   position: relative;
@@ -464,7 +514,8 @@
 .ws-board-colbody {
   border-radius: 12px;
   padding: 8px;
-  max-height: 70vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 .ws-board-dropslot {
