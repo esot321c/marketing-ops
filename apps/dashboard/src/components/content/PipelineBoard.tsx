@@ -496,18 +496,19 @@ export function PipelineBoard({ tenant, siteDomain, onOpen }: { tenant: string; 
           const indexOfTarget = targetItems.findIndex((i) => i.id === (cardTarget.data as CardData).id);
           const closestEdgeOfTarget = extractClosestEdge(cardTarget.data);
 
+          // Raw pre-removal drop slot: the target card's index, plus one if
+          // dropping on its bottom edge. computeReorder does its own removal
+          // adjustment (see its contract), so do NOT also use
+          // getReorderDestinationIndex here or the removal is subtracted twice
+          // and the card lands one slot too high.
+          const dropSlot = indexOfTarget + (closestEdgeOfTarget === "bottom" ? 1 : 0);
+
           if (sourceState === targetState) {
-            const startIndex = targetItems.findIndex((i) => i.id === id);
-            const finishIndex = getReorderDestinationIndex({
-              startIndex, indexOfTarget, closestEdgeOfTarget, axis: "vertical",
-            });
-            if (finishIndex === startIndex) return;
-            void moveItemWithinColumn(targetState, id, finishIndex);
+            void moveItemWithinColumn(targetState, id, dropSlot);
           } else {
-            // Cross-column: destination index is where the card lands among the
-            // target column's existing items (source not yet present there).
-            const base = indexOfTarget + (closestEdgeOfTarget === "bottom" ? 1 : 0);
-            void moveItemAcrossColumns(id, sourceState, targetState, base);
+            // Cross-column: the source is not yet in the target column, so the
+            // slot is used directly (no removal adjustment needed there).
+            void moveItemAcrossColumns(id, sourceState, targetState, dropSlot);
           }
           return;
         }
