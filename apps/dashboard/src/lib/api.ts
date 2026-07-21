@@ -180,6 +180,10 @@ export function deleteItem(tenant: string, id: string) {
   return jsonRequest<{ ok: boolean }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
+export function duplicateItem(tenant: string, id: string) {
+  return jsonRequest<ContentItem>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/duplicate`, { method: "POST" });
+}
+
 export function setItemOrder(tenant: string, id: string, order: number) {
   return jsonRequest<{ ok: boolean; item: ContentItem }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/order`, { method: "POST", body: JSON.stringify({ order }) });
 }

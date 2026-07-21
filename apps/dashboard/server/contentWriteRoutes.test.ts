@@ -4,6 +4,7 @@ import { mkdir, rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { registerRoutes } from "./routes.js";
 import { dataRoot, resolveContentDir } from "../src/lib/setupPaths.js";
+import { validateContentItem } from "../src/lib/contentTypes.js";
 
 const app = new Hono();
 registerRoutes(app);
@@ -237,4 +238,89 @@ test("POST run for refine states when no note is queued", async () => {
   expect(res.status).toBe(200);
   const body = await res.json();
   expect(body.instruction).toContain("No refine note queued");
+});
+
+test("POST duplicate creates a new item with a fresh id, idea state, and reset fields", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  const sourceFile = path.join(itemsDir, "dup1.json");
+  const source = {
+    id: "dup1", tenantId: "write-test-agency", channel: "linkedin", format: "carousel",
+    state: "in_review", title: "Original title", angle: "a", pillar: "p",
+    order: 3,
+    assets: [{ id: "a1", kind: "carousel-visual", route: "local-harness", status: "ready" }],
+    schedule: { status: "scheduled", date: "2026-08-01" },
+    source: ["https://example.com/source"],
+    citations: [{ label: "Example", url: "https://example.com" }],
+    refineLog: [{ at: "2026-07-01T00:00:00Z", instruction: "tighten it", summary: "done" }],
+  };
+  await writeFile(sourceFile, JSON.stringify(source));
+
+  const res = await app.request("/api/content/write-test-agency/dup1/duplicate", { method: "POST" });
+  expect(res.status).toBe(200);
+  const newItem = await res.json() as Record<string, unknown>;
+
+  expect(newItem.id).toBe("dup1-copy");
+  expect(newItem.state).toBe("idea");
+  expect(newItem.title).toBe("Original title (copy)");
+  expect(newItem.order).toBeUndefined();
+  expect(newItem.schedule).toEqual({ status: "unscheduled" });
+  expect(newItem.refineLog).toEqual([]);
+  expect(newItem.assets).toEqual(source.assets);
+  expect(newItem.citations).toEqual(source.citations);
+  expect(newItem.source).toEqual(source.source);
+  expect(newItem.angle).toBe("a");
+  expect(newItem.pillar).toBe("p");
+  expect(newItem.channel).toBe("linkedin");
+  expect(newItem.format).toBe("carousel");
+  expect(newItem.tenantId).toBe("write-test-agency");
+  expect(validateContentItem(newItem)).toBe(true);
+
+  const savedRaw = await readFile(path.join(itemsDir, "dup1-copy.json"), "utf8");
+  const saved = JSON.parse(savedRaw);
+  expect(saved).toEqual(newItem);
+  expect(Object.prototype.hasOwnProperty.call(saved, "order")).toBe(false);
+
+  // Deep-copy correctness: mutating the returned/saved item must not affect the source file.
+  const sourceAfter = JSON.parse(await readFile(sourceFile, "utf8"));
+  expect(sourceAfter).toEqual(source);
+  (newItem.assets as unknown[]).push({ id: "mutated" });
+  (newItem.refineLog as unknown[]).push({ at: "x", instruction: "x", summary: "x" });
+  const sourceStillIntact = JSON.parse(await readFile(sourceFile, "utf8"));
+  expect(sourceStillIntact).toEqual(source);
+});
+
+test("POST duplicate of the same source twice avoids id collision", async () => {
+  const itemsDir = path.join(dir, "items");
+  await mkdir(itemsDir, { recursive: true });
+  await writeFile(path.join(itemsDir, "dup2.json"), JSON.stringify({
+    id: "dup2", tenantId: "write-test-agency", channel: "linkedin", format: "text-post",
+    state: "approved", title: "Second source", angle: "a", pillar: "p",
+    assets: [], schedule: { status: "unscheduled" }, source: [], refineLog: [],
+  }));
+
+  const first = await app.request("/api/content/write-test-agency/dup2/duplicate", { method: "POST" });
+  expect(first.status).toBe(200);
+  const firstBody = await first.json() as { id: string };
+  expect(firstBody.id).toBe("dup2-copy");
+
+  const second = await app.request("/api/content/write-test-agency/dup2/duplicate", { method: "POST" });
+  expect(second.status).toBe(200);
+  const secondBody = await second.json() as { id: string };
+  expect(secondBody.id).toBe("dup2-copy2");
+
+  const firstStillThere = await readFile(path.join(itemsDir, "dup2-copy.json"), "utf8");
+  expect(JSON.parse(firstStillThere).id).toBe("dup2-copy");
+});
+
+test("POST duplicate for an unknown id returns the same not-found shape as state", async () => {
+  const res = await app.request("/api/content/write-test-agency/no-such-item/duplicate", { method: "POST" });
+  expect(res.status).toBe(400);
+  expect(await res.text()).toBe("Not found");
+});
+
+test("POST duplicate for an unknown tenant returns 404", async () => {
+  const res = await app.request("/api/content/no-such-tenant/dup1/duplicate", { method: "POST" });
+  expect(res.status).toBe(404);
+  expect(await res.text()).toBe("Unknown tenant");
 });

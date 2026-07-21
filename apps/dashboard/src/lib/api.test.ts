@@ -1,5 +1,5 @@
 import { test, expect, vi, afterEach } from "vitest";
-import { getBoardPrefs, setBoardPrefs, deleteItem } from "./api.js";
+import { getBoardPrefs, setBoardPrefs, deleteItem, duplicateItem } from "./api.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -55,4 +55,18 @@ test("deleteItem sends a DELETE request to the item's endpoint", async () => {
     expect.objectContaining({ method: "DELETE" })
   );
   expect(result).toEqual({ ok: true });
+});
+
+test("duplicateItem sends a POST request to the item's duplicate endpoint", async () => {
+  const newItem = { id: "item-1-copy", state: "idea", title: "Item (copy)" };
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse(newItem));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const result = await duplicateItem("example-agency", "item-1");
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/content/example-agency/item-1/duplicate",
+    expect.objectContaining({ method: "POST" })
+  );
+  expect(result).toEqual(newItem);
 });

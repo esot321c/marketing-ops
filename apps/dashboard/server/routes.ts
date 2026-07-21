@@ -345,6 +345,38 @@ export function registerRoutes(app: Hono) {
     return c.json({ ok: true, item });
   });
 
+  app.post("/api/content/:tenant/:id/duplicate", async (c) => {
+    const tenant = c.req.param("tenant");
+    if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
+    const sourceId = c.req.param("id");
+    const file = resolveContentItemPath(tenant, sourceId);
+    if (!file) return c.text("Bad id", 400);
+    const raw = await readFile(file, "utf8").catch(() => null);
+    if (raw === null) return c.text("Not found", 400);
+    const source = JSON.parse(raw) as Record<string, unknown>;
+
+    const itemsDir = path.dirname(file);
+    let newId = `${sourceId}-copy`;
+    let suffix = 2;
+    let newFile = path.join(itemsDir, `${newId}.json`);
+    while (await readFile(newFile, "utf8").then(() => true).catch(() => false)) {
+      newId = `${sourceId}-copy${suffix}`;
+      newFile = path.join(itemsDir, `${newId}.json`);
+      suffix += 1;
+    }
+
+    const newItem = structuredClone(source);
+    newItem.id = newId;
+    newItem.state = "idea";
+    newItem.title = `${source.title as string} (copy)`;
+    delete newItem.order;
+    newItem.schedule = { status: "unscheduled" };
+    newItem.refineLog = [];
+
+    await writeFile(newFile, JSON.stringify(newItem, null, 2), "utf8");
+    return c.json(newItem);
+  });
+
   app.post("/api/content/:tenant/:id/order", async (c) => {
     const tenant = c.req.param("tenant");
     if (!(await tenantExists(tenant))) return c.text("Unknown tenant", 404);
