@@ -70,6 +70,26 @@ function isAllUnranked(column: { order?: number }[]): boolean {
   return column.every((i) => typeof i.order !== "number");
 }
 
+// True when placing an item at display slot `at` in `column` (in current
+// display order) cannot be done with a single numeric write, so the whole
+// column must be normalized to gap-spaced orders instead.
+//
+// orderedColumn floats every unranked item below every ranked one regardless of
+// magnitude. So the moment the moved item is given ANY number, it jumps above
+// all still-unranked siblings. If the drop slot is at or past the first
+// unranked item, that means the moved item must sort at/after one or more
+// unranked items, which no number can achieve. The fix is a one-time
+// normalization that assigns real orders to every item in display order,
+// upgrading the column to the clean all-ranked regime. (`at` past the first
+// unranked index also covers the all-unranked column, where the first unranked
+// index is 0 and any non-start drop, and every bottom drop, normalizes.)
+function needsNormalization(column: { order?: number }[], at: number): boolean {
+  if (column.length === 0) return false;
+  const firstUnranked = column.findIndex((i) => typeof i.order !== "number");
+  if (firstUnranked === -1) return false;
+  return at > firstUnranked;
+}
+
 // Computes the `{ id, order }` writes needed for an item dragged within its
 // own column, or `null` when the drop does not actually move the item.
 //
@@ -100,7 +120,11 @@ export function computeReorder(
 
   if (draggedIndex !== -1 && adjustedIndex === draggedIndex) return null;
 
-  if (isAllUnranked(items)) {
+  // Normalize when the moved item must sort at/after an unranked sibling: no
+  // single number can beat an unranked item (orderedColumn floats all unranked
+  // items last). An all-unranked column always needs it; a mixed column needs it
+  // once the drop slot reaches the first unranked item. See needsNormalization.
+  if (isAllUnranked(items) || needsNormalization(remaining, adjustedIndex)) {
     const reordered = [...remaining];
     reordered.splice(adjustedIndex, 0, items[draggedIndex]!);
     return reordered.map((item, i) => ({ id: item.id, order: (i + 1) * ORDER_GAP }));
@@ -118,4 +142,27 @@ export function computeReorder(
   const before = nearestRanked(remaining, adjustedIndex - 1, -1);
   const after = nearestRanked(remaining, adjustedIndex, 1);
   return [{ id: draggedId, order: insertOrder(before, after) }];
+}
+
+// Computes the `{ id, order }` writes to place `movedId` at `index` among
+// `existing` (a column the moved item is NOT currently part of, i.e. the
+// cross-column case). `index` is clamped to `[0, existing.length]`; `index ===
+// existing.length` means "the bottom". Mirrors computeReorder's neighbour /
+// all-unranked-normalization logic, but there is no self-removal to adjust for.
+export function insertAt(
+  existing: { id: string; order?: number }[],
+  movedId: string,
+  index: number,
+): { id: string; order: number }[] {
+  const at = Math.max(0, Math.min(index, existing.length));
+
+  if (needsNormalization(existing, at)) {
+    const withMoved = [...existing];
+    withMoved.splice(at, 0, { id: movedId });
+    return withMoved.map((item, i) => ({ id: item.id, order: (i + 1) * ORDER_GAP }));
+  }
+
+  const before = nearestRanked(existing, at - 1, -1);
+  const after = nearestRanked(existing, at, 1);
+  return [{ id: movedId, order: insertOrder(before, after) }];
 }

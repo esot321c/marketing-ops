@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { dropArgs, insertOrder, computeReorder } from "./boardDrag.js";
+import { dropArgs, insertOrder, computeReorder, insertAt } from "./boardDrag.js";
 
 // Mirrors contentLibrary's orderedColumn comparator (ordered items sort by
 // value and always precede unordered ones, which sort by id) so these tests
@@ -73,24 +73,25 @@ test("computeReorder places the moved item between two neighbors that both alrea
   expect(resorted).toEqual(["b", "a", "c"]);
 });
 
-test("computeReorder gives a moved ordered item a value that still sorts ahead of the unordered tail it was dropped into", () => {
+test("computeReorder normalizes the column so a moved item can land below an unordered tail", () => {
   // "a" and "b" have real order values; "x" and "y" are legacy items with no
-  // order, so orderedColumn already displays them after "a" and "b". Any
-  // numeric order sorts ahead of an absent one, so dropping "b" among the
-  // unordered tail can only land it right after the last ordered neighbor,
-  // never literally between two still-unordered siblings.
+  // order, so orderedColumn floats them after every ordered item regardless of
+  // magnitude. Dragging "b" past them to the bottom therefore cannot be done
+  // with a single numeric write (any number sorts "b" back above x and y).
+  // computeReorder must instead normalize the whole column to gap-spaced orders
+  // so "b" genuinely lands last, matching where it was dropped.
   const items = [
     { id: "a", order: 10 },
     { id: "b", order: 20 },
     { id: "x" },
     { id: "y" },
   ];
-  const writes = computeReorder(items, "b", 3);
+  const writes = computeReorder(items, "b", 4);
   expect(writes).not.toBeNull();
-  expect(writes).toHaveLength(1);
+  expect(writes).toHaveLength(4);
   const byId = new Map(writes!.map((w) => [w.id, w.order]));
-  const resorted = sortDisplayed([...items.filter((i) => i.id !== "b"), { id: "b", order: byId.get("b")! }]).map((i) => i.id);
-  expect(resorted).toEqual(["a", "b", "x", "y"]);
+  const resorted = sortDisplayed(items.map((i) => ({ id: i.id, order: byId.get(i.id) }))).map((i) => i.id);
+  expect(resorted).toEqual(["a", "x", "y", "b"]);
 });
 
 test("computeReorder sorts a moved unordered (legacy) item to sit between two ordered neighbors", () => {
@@ -171,4 +172,75 @@ test("computeReorder normalizes a 2-item all-unordered column when dragging to t
   const byId = new Map(writes!.map((w) => [w.id, w.order]));
   const resorted = sortDisplayed(items.map((i) => ({ id: i.id, order: byId.get(i.id) }))).map((i) => i.id);
   expect(resorted).toEqual(["b", "a"]);
+});
+
+// insertAt places a card arriving from ANOTHER column at a slot among the
+// target column's existing items (the cross-column drop). Same order math as
+// computeReorder, but the moved item is not part of `existing`, so there is no
+// self-removal to adjust for.
+
+test("insertAt places a cross-column card between two ordered neighbors", () => {
+  const existing = [
+    { id: "a", order: 1000 },
+    { id: "b", order: 2000 },
+    { id: "c", order: 3000 },
+  ];
+  const writes = insertAt(existing, "new", 2);
+  expect(writes).toHaveLength(1);
+  expect(writes[0]!.id).toBe("new");
+  const resorted = sortDisplayed([...existing, writes[0]!]).map((i) => i.id);
+  expect(resorted).toEqual(["a", "b", "new", "c"]);
+});
+
+test("insertAt appends a cross-column card to the bottom of an all-ordered column", () => {
+  const existing = [
+    { id: "a", order: 1000 },
+    { id: "b", order: 2000 },
+  ];
+  const writes = insertAt(existing, "new", 2);
+  expect(writes).toHaveLength(1);
+  const resorted = sortDisplayed([...existing, writes[0]!]).map((i) => i.id);
+  expect(resorted).toEqual(["a", "b", "new"]);
+});
+
+test("insertAt normalizes so a cross-column card can land below an unordered tail", () => {
+  // The user-reported case: the target column has ordered items followed by a
+  // legacy unordered item that orderedColumn always floats last. Dropping the
+  // arriving card at the bottom cannot be a single numeric write (any number
+  // sorts it back above the unordered item), so insertAt normalizes the whole
+  // column, letting the card genuinely land last where it was dropped.
+  const existing = [
+    { id: "a", order: 1000 },
+    { id: "b", order: 2000 },
+    { id: "legacy" },
+  ];
+  const writes = insertAt(existing, "new", 3);
+  expect(writes).toHaveLength(4);
+  const byId = new Map(writes.map((w) => [w.id, w.order]));
+  const resorted = sortDisplayed(
+    [...existing, { id: "new" }].map((i): { id: string; order?: number } => ({ id: i.id, order: byId.get(i.id) })),
+  ).map((i) => i.id);
+  expect(resorted).toEqual(["a", "b", "legacy", "new"]);
+});
+
+test("insertAt normalizes an all-unordered target column", () => {
+  const existing = [{ id: "a" }, { id: "b" }];
+  const writes = insertAt(existing, "new", 1);
+  expect(writes).toHaveLength(3);
+  const byId = new Map(writes.map((w) => [w.id, w.order]));
+  const resorted = sortDisplayed(
+    [...existing, { id: "new" }].map((i): { id: string; order?: number } => ({ id: i.id, order: byId.get(i.id) })),
+  ).map((i) => i.id);
+  expect(resorted).toEqual(["a", "new", "b"]);
+});
+
+test("insertAt places a card at the top of an all-ordered column", () => {
+  const existing = [
+    { id: "a", order: 1000 },
+    { id: "b", order: 2000 },
+  ];
+  const writes = insertAt(existing, "new", 0);
+  expect(writes).toHaveLength(1);
+  const resorted = sortDisplayed([...existing, writes[0]!]).map((i) => i.id);
+  expect(resorted).toEqual(["new", "a", "b"]);
 });

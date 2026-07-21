@@ -8,7 +8,7 @@ import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indi
 import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder, duplicateItem, deleteItem } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import { ALL_BOARD_STATES, COLUMN_COLORS, type BoardPrefs } from "@/lib/contentLibrary";
-import { computeReorder, dropArgs } from "@/lib/boardDrag";
+import { computeReorder, insertAt, dropArgs } from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 import { channelLabel, effectiveFormat } from "@/lib/contentTypes";
 import { IdeaReviewPopup } from "./IdeaReviewPopup";
@@ -40,7 +40,7 @@ const DEFAULT_PREFS: BoardPrefs = { columnOrder: ALL_BOARD_STATES, columnColors:
 // so the single monitor can tell cards from columns without guessing.
 type CardData = { dragType: "card"; id: string; state: ContentState };
 type ColumnData = { dragType: "column"; state: ContentState };
-type ColumnBodyData = { dragType: "column-body"; state: ContentState };
+type ColumnBodyData = { dragType: "column-body"; state: ContentState; isEnd?: boolean };
 
 function isCardData(d: Record<string | symbol, unknown>): d is CardData {
   return d.dragType === "card";
@@ -326,21 +326,36 @@ function ColumnBody({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
   const [isOver, setIsOver] = useState(false);
 
+  // The whole body is a drop target (for column-level highlight and as a
+  // fallback), and a dedicated end-zone that fills the space after the last
+  // card is a separate drop target meaning "drop at the bottom". Dropping in a
+  // column's open area lands on the end-zone unambiguously, no card-target
+  // geometry to fight. This mirrors Atlassian's own board example.
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const data: ColumnBodyData = { dragType: "column-body", state };
-    return dropTargetForElements({
-      element: el,
-      canDrop: ({ source }) => isCardData(source.data),
-      getData: () => ({ ...data }),
-      onDragEnter: () => setIsOver(true),
-      onDrag: () => setIsOver(true),
-      onDragLeave: () => setIsOver(false),
-      onDrop: () => setIsOver(false),
-    });
+    const bodyEl = ref.current;
+    const endEl = endRef.current;
+    if (!bodyEl || !endEl) return;
+    const bodyData: ColumnBodyData = { dragType: "column-body", state };
+    const endData: ColumnBodyData = { dragType: "column-body", state, isEnd: true };
+    return combine(
+      dropTargetForElements({
+        element: bodyEl,
+        canDrop: ({ source }) => isCardData(source.data),
+        getData: () => ({ ...bodyData }),
+        onDragEnter: () => setIsOver(true),
+        onDrag: () => setIsOver(true),
+        onDragLeave: () => setIsOver(false),
+        onDrop: () => setIsOver(false),
+      }),
+      dropTargetForElements({
+        element: endEl,
+        canDrop: ({ source }) => isCardData(source.data),
+        getData: () => ({ ...endData }),
+      }),
+    );
   }, [state]);
 
   return (
@@ -355,6 +370,8 @@ function ColumnBody({
       }}
     >
       {children}
+      {/* Grows to fill the remaining column space; dropping here means "bottom". */}
+      <div ref={endRef} style={{ flex: "1 1 auto", minHeight: 24 }} />
     </div>
   );
 }
@@ -422,20 +439,22 @@ export function PipelineBoard({ tenant, siteDomain, onOpen }: { tenant: string; 
     if (!args) return;
     setActionError(null);
     try {
-      // Change state first, then place it at the requested index in the target
-      // column via the same order math the within-column path uses.
+      // Change state first, then compute the order value that inserts the moved
+      // item at `index` among the target column's EXISTING items. We compute the
+      // writes against the target column as it looked before the move (the moved
+      // item is not part of it), then also write the moved item's own order.
       await postState(tenant, id, args.to, args.date);
       const cur = dataRef.current;
       if (cur) {
-        // Build the target column as it will look with the moved item appended,
-        // so computeReorder can slot it to `index`.
-        const moved = findItem(cur, id);
-        if (moved) {
-          const targetItems = [...cur[target], { ...moved, state: target }];
-          const writes = computeReorder(targetItems, id, index);
-          if (writes) {
-            await Promise.allSettled(writes.map((w) => setItemOrder(tenant, w.id, w.order)));
-          }
+        // postState may already have folded the moved item into the target
+        // column (optimistic update or a refetch landing mid-flight). Exclude it
+        // so `existing` is the column as it looked WITHOUT the moved item, which
+        // is what insertAt's neighbour math and the caller's `index` assume.
+        const existing = cur[target].filter((i) => i.id !== id);
+        const at = Math.min(index, existing.length);
+        const writes = insertAt(existing, id, at);
+        if (writes.length) {
+          await Promise.allSettled(writes.map((w) => setItemOrder(tenant, w.id, w.order)));
         }
       }
       reload();
@@ -486,9 +505,27 @@ export function PipelineBoard({ tenant, siteDomain, onOpen }: { tenant: string; 
         const sourceState = source.data.state;
         const id = source.data.id;
 
-        // Prefer a card target (gives us an edge + index); fall back to a column body.
+        // The dedicated end-zone (open area after the last card) wins first and
+        // always means "drop at the bottom" of that column, with no card-target
+        // geometry to fight. Otherwise use the hovered card target for precise
+        // slotting, then a plain column-body fallback.
+        const endTarget = targets.find(
+          (t) => t.data.dragType === "column-body" && (t.data as ColumnBodyData).isEnd,
+        );
+        if (endTarget) {
+          const targetState = (endTarget.data as ColumnBodyData).state;
+          if (targetState === sourceState) {
+            void moveItemWithinColumn(targetState, id, cur[targetState].length);
+          } else {
+            void moveItemAcrossColumns(id, sourceState, targetState, cur[targetState].length);
+          }
+          return;
+        }
+
         const cardTarget = targets.find((t) => t.data.dragType === "card");
-        const bodyTarget = targets.find((t) => t.data.dragType === "column-body");
+        const bodyTarget = targets.find(
+          (t) => t.data.dragType === "column-body" && !(t.data as ColumnBodyData).isEnd,
+        );
 
         if (cardTarget && isCardData(cardTarget.data)) {
           const targetState = cardTarget.data.state;
@@ -514,10 +551,17 @@ export function PipelineBoard({ tenant, siteDomain, onOpen }: { tenant: string; 
         }
 
         if (bodyTarget && bodyTarget.data.dragType === "column-body") {
+          // Dropped in a column's open area (below the cards, or an empty
+          // column): send the card to the bottom, whether it is the same column
+          // or a different one. No card edge or blue indicator needed.
           const targetState = (bodyTarget.data as ColumnBodyData).state;
-          if (targetState === sourceState) return; // dropped on own column empty space, no-op
-          // Empty column or below all cards: append.
-          void moveItemAcrossColumns(id, sourceState, targetState, cur[targetState].length);
+          if (targetState === sourceState) {
+            // Same column: the last slot in the pre-removal array. computeReorder
+            // adjusts for the removal, so length places it at the end.
+            void moveItemWithinColumn(targetState, id, cur[targetState].length);
+          } else {
+            void moveItemAcrossColumns(id, sourceState, targetState, cur[targetState].length);
+          }
         }
       },
     });
@@ -656,12 +700,4 @@ export function PipelineBoard({ tenant, siteDomain, onOpen }: { tenant: string; 
       ) : null}
     </div>
   );
-}
-
-function findItem(data: Record<ContentState, ContentItem[]>, id: string): ContentItem | undefined {
-  for (const state of Object.keys(data) as ContentState[]) {
-    const found = data[state]?.find((i) => i.id === id);
-    if (found) return found;
-  }
-  return undefined;
 }
