@@ -485,3 +485,42 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.ws-board-card-menutrigger {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ws-slate);
+  cursor: pointer;
+}
+.ws-board-card-menutrigger:hover {
+  background: color-mix(in srgb, var(--ws-band) 55%, transparent);
+  color: var(--ws-ink);
+}
+.ws-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  color: var(--ws-ink);
+  cursor: pointer;
+}
+.ws-menu-item:hover {
+  background: color-mix(in srgb, var(--ws-band) 55%, transparent);
+}
+.ws-menu-item-danger {
+  color: #e5484d;
+}

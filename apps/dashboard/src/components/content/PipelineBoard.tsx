@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
-import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder } from "@/lib/api";
+import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder, duplicateItem, deleteItem } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import { ALL_BOARD_STATES, COLUMN_COLORS, type BoardPrefs } from "@/lib/contentLibrary";
 import { computeReorder, dropArgs, reorderList } from "@/lib/boardDrag";
@@ -22,6 +22,99 @@ const LABELS: Record<ContentState, string> = {
 
 const DEFAULT_PREFS: BoardPrefs = { columnOrder: ALL_BOARD_STATES, columnColors: {} };
 
+type MenuMode = "menu" | "move-to" | "delete-confirm";
+
+function CardMenu({
+  item,
+  state,
+  columnOrder,
+  onClose,
+  onOpen,
+  onMoveTo,
+  onDuplicate,
+  onDelete,
+}: {
+  item: ContentItem;
+  state: ContentState;
+  columnOrder: ContentState[];
+  onClose: () => void;
+  onOpen: (id: string) => void;
+  onMoveTo: (id: string, target: ContentState) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [mode, setMode] = useState<MenuMode>("menu");
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={menuRef}
+      className="ws-board-swatchmenu"
+      style={{ width: 168, padding: 6, flexWrap: "nowrap", flexDirection: "column", top: 26, left: "auto", right: 4 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {mode === "menu" ? (
+        <>
+          <button type="button" className="ws-menu-item" onClick={() => { onOpen(item.id); onClose(); }}>
+            Open
+          </button>
+          <button type="button" className="ws-menu-item" onClick={() => setMode("move-to")}>
+            Move to
+          </button>
+          <button type="button" className="ws-menu-item" onClick={() => { onDuplicate(item.id); onClose(); }}>
+            Duplicate
+          </button>
+          <button type="button" className="ws-menu-item ws-menu-item-danger" onClick={() => setMode("delete-confirm")}>
+            Delete
+          </button>
+        </>
+      ) : null}
+
+      {mode === "move-to" ? (
+        columnOrder
+          .filter((target) => target !== state)
+          .map((target) => (
+            <button
+              key={target}
+              type="button"
+              className="ws-menu-item"
+              onClick={() => { onMoveTo(item.id, target); onClose(); }}
+            >
+              {LABELS[target]}
+            </button>
+          ))
+      ) : null}
+
+      {mode === "delete-confirm" ? (
+        <>
+          <span className="ws-slate" style={{ fontSize: 12, padding: "4px 8px" }}>Delete?</span>
+          <button type="button" className="ws-menu-item ws-menu-item-danger" onClick={() => { onDelete(item.id); onClose(); }}>
+            Confirm
+          </button>
+          <button type="button" className="ws-menu-item" onClick={() => setMode("menu")}>
+            Cancel
+          </button>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id: string) => void }) {
   const fetch = useCallback(() => getBoard(tenant), [tenant]);
   const { data, reload } = useLiveData<Record<ContentState, ContentItem[]>>(fetch, (p) => p.includes(`/content/${tenant}/`));
@@ -32,6 +125,7 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
   const [colorMenuFor, setColorMenuFor] = useState<ContentState | null>(null);
   const [reviewItem, setReviewItem] = useState<ContentItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [cardMenuFor, setCardMenuFor] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +228,36 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
     }
   }
 
+  async function handleCardMoveTo(id: string, target: ContentState) {
+    setActionError(null);
+    try {
+      await postState(tenant, id, target);
+      reload();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function handleCardDuplicate(id: string) {
+    setActionError(null);
+    try {
+      await duplicateItem(tenant, id);
+      reload();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function handleCardDelete(id: string) {
+    setActionError(null);
+    try {
+      await deleteItem(tenant, id);
+      reload();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
       <header>
@@ -224,23 +348,48 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
                           onDrop={(e) => { e.stopPropagation(); void handleItemDrop(state, index, e); }}
                           style={{ height: dragOverItem?.state === state && dragOverItem.index === index ? 8 : 0 }}
                         />
-                        <button
-                          type="button"
-                          className="ws-card-btn ws-board-card"
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("application/x-item-id", i.id);
-                            e.dataTransfer.setData("application/x-item-state", state);
-                            e.dataTransfer.effectAllowed = "move";
-                          }}
-                          onDragEnd={() => { setDragOverColumn(null); setDragOverItem(null); }}
-                          onClick={() => handleCardClick(state, i)}
-                        >
-                          <div className="ws-ink ws-board-card-title">{i.title}</div>
-                          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                            <span className="ws-pill ws-pill-mono">{effectiveFormat(i)}</span>
-                          </div>
-                        </button>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            className="ws-card-btn ws-board-card"
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("application/x-item-id", i.id);
+                              e.dataTransfer.setData("application/x-item-state", state);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDragEnd={() => { setDragOverColumn(null); setDragOverItem(null); }}
+                            onClick={() => handleCardClick(state, i)}
+                          >
+                            <div className="ws-ink ws-board-card-title" style={{ paddingRight: 20 }}>{i.title}</div>
+                            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                              <span className="ws-pill ws-pill-mono">{effectiveFormat(i)}</span>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Card actions"
+                            className="ws-board-card-menutrigger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCardMenuFor((id) => (id === i.id ? null : i.id));
+                            }}
+                          >
+                            ⋯
+                          </button>
+                          {cardMenuFor === i.id ? (
+                            <CardMenu
+                              item={i}
+                              state={state}
+                              columnOrder={prefs.columnOrder}
+                              onClose={() => setCardMenuFor(null)}
+                              onOpen={onOpen}
+                              onMoveTo={(id, target) => void handleCardMoveTo(id, target)}
+                              onDuplicate={(id) => void handleCardDuplicate(id)}
+                              onDelete={(id) => void handleCardDelete(id)}
+                            />
+                          ) : null}
+                        </div>
                       </div>
                     ))}
                     <div

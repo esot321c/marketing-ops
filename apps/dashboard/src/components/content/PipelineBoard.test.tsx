@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { test, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { PipelineBoard } from "./PipelineBoard.js";
-import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder } from "@/lib/api";
+import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder, duplicateItem, deleteItem } from "@/lib/api";
 import { ALL_BOARD_STATES } from "@/lib/contentLibrary";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 
@@ -17,6 +17,8 @@ vi.mock("@/lib/api", () => ({
   setItemOrder: vi.fn(),
   postState: vi.fn(),
   getItem: vi.fn(),
+  duplicateItem: vi.fn(),
+  deleteItem: vi.fn(),
 }));
 
 function makeItem(id: string, state: ContentState, title: string, order?: number): ContentItem {
@@ -431,6 +433,171 @@ test("drag-drop rejection shows the error text", async () => {
     getData: (key: string) => (key === "application/x-item-id" ? "drafting-1" : "drafting"),
   };
   fireEvent.drop(dropSlot, { dataTransfer });
+
+  expect(await screen.findByText("Action failed: network down")).toBeTruthy();
+});
+
+test("clicking the card actions trigger opens the menu without navigating or opening the idea popup", async () => {
+  const item = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  const onOpen = vi.fn();
+
+  render(<PipelineBoard tenant="example-agency" onOpen={onOpen} />);
+  await screen.findByText("Drafting title");
+
+  const trigger = screen.getByLabelText("Card actions");
+  fireEvent.click(trigger);
+
+  expect(await screen.findByText("Open")).toBeTruthy();
+  expect(onOpen).not.toHaveBeenCalled();
+  expect(screen.queryByText(item.angle)).toBeNull();
+});
+
+test("Move to submenu lists every column except the current state; picking Parked calls postState", async () => {
+  const item = makeItem("in-review-1", "in_review", "In review title");
+  const board = { ...emptyBoard(), in_review: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(postState).mockResolvedValue({ ok: true, item: { ...item, state: "parked" } });
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("In review title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  fireEvent.click(await screen.findByText("Move to"));
+
+  const menu = (await screen.findByRole("button", { name: "Parked" })).closest<HTMLElement>(".ws-board-swatchmenu")!;
+  expect(within(menu).queryByRole("button", { name: "In review" })).toBeNull();
+  expect(within(menu).getByRole("button", { name: "Parked" })).toBeTruthy();
+  expect(within(menu).getByRole("button", { name: "Ideas" })).toBeTruthy();
+
+  fireEvent.click(within(menu).getByRole("button", { name: "Parked" }));
+
+  await waitFor(() => {
+    expect(postState).toHaveBeenCalledWith("example-agency", "in-review-1", "parked");
+  });
+  expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
+  expect(screen.queryByText("Duplicate")).toBeNull();
+});
+
+test("Duplicate calls duplicateItem and closes the menu", async () => {
+  const item = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(duplicateItem).mockResolvedValue({ ...item, id: "drafting-1-copy", state: "idea" });
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Drafting title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  fireEvent.click(await screen.findByText("Duplicate"));
+
+  await waitFor(() => {
+    expect(duplicateItem).toHaveBeenCalledWith("example-agency", "drafting-1");
+  });
+  expect(screen.queryByText("Duplicate")).toBeNull();
+});
+
+test("Delete requires an explicit confirm click before deleteItem is called", async () => {
+  const item = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(deleteItem).mockResolvedValue({ ok: true });
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Drafting title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  fireEvent.click(await screen.findByText("Delete"));
+
+  expect(deleteItem).not.toHaveBeenCalled();
+  const confirmButton = await screen.findByText("Confirm");
+  fireEvent.click(confirmButton);
+
+  await waitFor(() => {
+    expect(deleteItem).toHaveBeenCalledWith("example-agency", "drafting-1");
+  });
+});
+
+test("Cancel on the delete confirm returns to the menu without deleting", async () => {
+  const item = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Drafting title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  fireEvent.click(await screen.findByText("Delete"));
+  fireEvent.click(await screen.findByText("Cancel"));
+
+  expect(deleteItem).not.toHaveBeenCalled();
+  expect(await screen.findByText("Open")).toBeTruthy();
+});
+
+test("clicking outside the menu closes it", async () => {
+  const item = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Drafting title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  await screen.findByText("Open");
+
+  fireEvent.mouseDown(document.body);
+
+  await waitFor(() => {
+    expect(screen.queryByText("Open")).toBeNull();
+  });
+});
+
+test("Escape closes the card action menu", async () => {
+  const item = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Drafting title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  await screen.findByText("Open");
+
+  fireEvent.keyDown(document, { key: "Escape" });
+
+  await waitFor(() => {
+    expect(screen.queryByText("Open")).toBeNull();
+  });
+});
+
+test("Open menu item calls onOpen with the item id and closes the menu", async () => {
+  const item = makeItem("drafting-1", "drafting", "Drafting title");
+  const board = { ...emptyBoard(), drafting: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  const onOpen = vi.fn();
+
+  render(<PipelineBoard tenant="example-agency" onOpen={onOpen} />);
+  await screen.findByText("Drafting title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  fireEvent.click(await screen.findByText("Open"));
+
+  expect(onOpen).toHaveBeenCalledWith("drafting-1");
+});
+
+test("a Move to postState rejection shows the board action error", async () => {
+  const item = makeItem("in-review-1", "in_review", "In review title");
+  const board = { ...emptyBoard(), in_review: [item] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(postState).mockRejectedValue(new Error("network down"));
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("In review title");
+
+  fireEvent.click(screen.getByLabelText("Card actions"));
+  fireEvent.click(await screen.findByText("Move to"));
+  fireEvent.click(screen.getByRole("button", { name: "Parked" }));
 
   expect(await screen.findByText("Action failed: network down")).toBeTruthy();
 });
