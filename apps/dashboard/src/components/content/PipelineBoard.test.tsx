@@ -1,6 +1,6 @@
-// @vitest-environment jsdom
+﻿// @vitest-environment jsdom
 import { test, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PipelineBoard } from "./PipelineBoard.js";
 import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder, duplicateItem, deleteItem } from "@/lib/api";
 import { ALL_BOARD_STATES } from "@/lib/contentLibrary";
@@ -20,6 +20,14 @@ vi.mock("@/lib/api", () => ({
   duplicateItem: vi.fn(),
   deleteItem: vi.fn(),
 }));
+
+// Radix's DropdownMenuTrigger opens on pointerdown, not on a bare click event,
+// so jsdom interactions need the pointerdown fired first.
+function openCardMenu() {
+  const trigger = screen.getByLabelText("Card actions");
+  fireEvent.pointerDown(trigger, { button: 0, pointerId: 1 });
+  fireEvent.click(trigger);
+}
 
 function makeItem(id: string, state: ContentState, title: string, order?: number): ContentItem {
   return {
@@ -446,10 +454,9 @@ test("clicking the card actions trigger opens the menu without navigating or ope
   render(<PipelineBoard tenant="example-agency" onOpen={onOpen} />);
   await screen.findByText("Drafting title");
 
-  const trigger = screen.getByLabelText("Card actions");
-  fireEvent.click(trigger);
+  openCardMenu();
 
-  expect(await screen.findByText("Open")).toBeTruthy();
+  expect(await screen.findByRole("menuitem", { name: "Open" })).toBeTruthy();
   expect(onOpen).not.toHaveBeenCalled();
   expect(screen.queryByText(item.angle)).toBeNull();
 });
@@ -463,20 +470,21 @@ test("Move to submenu lists every column except the current state; picking Parke
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("In review title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
+  openCardMenu();
   fireEvent.click(await screen.findByText("Move to"));
 
-  const menu = (await screen.findByRole("button", { name: "Parked" })).closest<HTMLElement>(".ws-board-swatchmenu")!;
-  expect(within(menu).queryByRole("button", { name: "In review" })).toBeNull();
-  expect(within(menu).getByRole("button", { name: "Parked" })).toBeTruthy();
-  expect(within(menu).getByRole("button", { name: "Ideas" })).toBeTruthy();
+  expect(await screen.findByRole("menuitem", { name: "Parked" })).toBeTruthy();
+  expect(screen.queryByRole("menuitem", { name: "In review" })).toBeNull();
+  expect(screen.getByRole("menuitem", { name: "Ideas" })).toBeTruthy();
 
-  fireEvent.click(within(menu).getByRole("button", { name: "Parked" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Parked" }));
 
   await waitFor(() => {
     expect(postState).toHaveBeenCalledWith("example-agency", "in-review-1", "parked");
   });
-  expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
+  await waitFor(() => {
+    expect(screen.queryByRole("menuitem", { name: "Confirm" })).toBeNull();
+  });
   expect(screen.queryByText("Duplicate")).toBeNull();
 });
 
@@ -489,13 +497,15 @@ test("Duplicate calls duplicateItem and closes the menu", async () => {
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("Drafting title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
-  fireEvent.click(await screen.findByText("Duplicate"));
+  openCardMenu();
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Duplicate" }));
 
   await waitFor(() => {
     expect(duplicateItem).toHaveBeenCalledWith("example-agency", "drafting-1");
   });
-  expect(screen.queryByText("Duplicate")).toBeNull();
+  await waitFor(() => {
+    expect(screen.queryByRole("menuitem", { name: "Duplicate" })).toBeNull();
+  });
 });
 
 test("Delete requires an explicit confirm click before deleteItem is called", async () => {
@@ -507,11 +517,11 @@ test("Delete requires an explicit confirm click before deleteItem is called", as
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("Drafting title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
-  fireEvent.click(await screen.findByText("Delete"));
+  openCardMenu();
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Delete" }));
 
   expect(deleteItem).not.toHaveBeenCalled();
-  const confirmButton = await screen.findByText("Confirm");
+  const confirmButton = await screen.findByRole("menuitem", { name: "Confirm" });
   fireEvent.click(confirmButton);
 
   await waitFor(() => {
@@ -527,12 +537,12 @@ test("Cancel on the delete confirm returns to the menu without deleting", async 
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("Drafting title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
-  fireEvent.click(await screen.findByText("Delete"));
-  fireEvent.click(await screen.findByText("Cancel"));
+  openCardMenu();
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Delete" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Cancel" }));
 
   expect(deleteItem).not.toHaveBeenCalled();
-  expect(await screen.findByText("Open")).toBeTruthy();
+  expect(await screen.findByRole("menuitem", { name: "Open" })).toBeTruthy();
 });
 
 test("clicking outside the menu closes it", async () => {
@@ -543,13 +553,14 @@ test("clicking outside the menu closes it", async () => {
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("Drafting title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
-  await screen.findByText("Open");
+  openCardMenu();
+  await screen.findByRole("menuitem", { name: "Open" });
 
+  fireEvent.pointerDown(document.body);
   fireEvent.mouseDown(document.body);
 
   await waitFor(() => {
-    expect(screen.queryByText("Open")).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull();
   });
 });
 
@@ -561,13 +572,13 @@ test("Escape closes the card action menu", async () => {
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("Drafting title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
-  await screen.findByText("Open");
+  openCardMenu();
+  const menuItem = await screen.findByRole("menuitem", { name: "Open" });
 
-  fireEvent.keyDown(document, { key: "Escape" });
+  fireEvent.keyDown(menuItem, { key: "Escape" });
 
   await waitFor(() => {
-    expect(screen.queryByText("Open")).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull();
   });
 });
 
@@ -580,8 +591,8 @@ test("Open menu item calls onOpen with the item id and closes the menu", async (
   render(<PipelineBoard tenant="example-agency" onOpen={onOpen} />);
   await screen.findByText("Drafting title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
-  fireEvent.click(await screen.findByText("Open"));
+  openCardMenu();
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Open" }));
 
   expect(onOpen).toHaveBeenCalledWith("drafting-1");
 });
@@ -595,9 +606,9 @@ test("a Move to postState rejection shows the board action error", async () => {
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("In review title");
 
-  fireEvent.click(screen.getByLabelText("Card actions"));
+  openCardMenu();
   fireEvent.click(await screen.findByText("Move to"));
-  fireEvent.click(screen.getByRole("button", { name: "Parked" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Parked" }));
 
   expect(await screen.findByText("Action failed: network down")).toBeTruthy();
 });
