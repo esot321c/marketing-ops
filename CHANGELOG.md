@@ -5,22 +5,24 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0] - 2026-07-18
+## [0.9.0] - 2026-07-21
 
-The pipeline board becomes a full Kanban board, and content items gain a parked lifecycle.
+The pipeline board becomes a full Kanban board, content items gain a parked lifecycle, and cards get an actions menu.
 
 ### Added
 
 - **Parked and needs-work states.** Content items can be set to `needs_work` (came back for revision) or `parked` (shelved or refused). They appear as their own board columns but are excluded from active pipeline counts (Today and Cadence).
-- **Reorderable columns.** Drag column headers to rearrange the board; the order is saved per tenant.
-- **Per-column colors.** Each column header carries a color you pick from a fixed palette, saved per tenant. Color your Parked and Needs work columns however you like.
-- **Manual item ordering.** Drag cards to reorder them within a column; the order persists.
-- **Kanban layout.** The board scrolls horizontally while the sidebar stays fixed, each column scrolls vertically on its own, and cards are wider and shorter.
-- **Collapsible sidebar.** Collapse the left sidebar to give the board more room; the preference is remembered.
+- **Drag-and-drop board.** Reorder cards within a column and move them between columns by dragging, with a drop indicator showing where a card will land and edge auto-scroll for reaching off-screen columns. Column headers drag to rearrange columns. Built on the pragmatic-drag-and-drop toolchain.
+- **Card actions menu.** Each card has a menu (Open, Move to any column, Duplicate, Delete with confirm), so moving a card to an off-screen column does not require a long drag.
+- **Per-column colors.** Each column header carries a color you pick from a fixed palette, saved per tenant.
+- **Manual item ordering.** Card order within a column persists.
+- **Channel on cards.** Cards show the channel alongside the format (for example `TEXT-POST` and `X`, or `BLOG-POST` and your site domain), so posts for different platforms are easy to tell apart.
+- **Kanban layout.** The board fills the viewport with full-height columns and a bottom scrollbar; the sidebar has a fixed header and scrolls independently, and can be collapsed for more room. Scrollbars are themed to match.
 
 ### Changed
 
-- Board column state is now stored in `data/<tenant>/content/board-prefs.json` (column order and colors). Existing tenants with no file get sensible defaults, so nothing needs migrating.
+- Board column state (column order and colors) is stored in `data/<tenant>/content/board-prefs.json`. Existing tenants with no file get sensible defaults, so nothing needs migrating.
+- The dashboard dev web port and allowed host are overridable via `DASHBOARD_WEB_PORT` and `DASHBOARD_ALLOWED_HOST`.
 
 ## [0.8.0] - 2026-07-17
 
