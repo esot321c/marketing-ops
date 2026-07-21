@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { test, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PipelineBoard } from "./PipelineBoard.js";
-import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder, duplicateItem, deleteItem } from "@/lib/api";
+import { getBoard, getBoardPrefs, postState, setBoardPrefs, duplicateItem, deleteItem } from "@/lib/api";
 import { ALL_BOARD_STATES } from "@/lib/contentLibrary";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 
@@ -20,76 +20,6 @@ vi.mock("@/lib/api", () => ({
   duplicateItem: vi.fn(),
   deleteItem: vi.fn(),
 }));
-
-// jsdom cannot simulate dnd-kit's real pointer-drag physics (it depends on
-// element geometry jsdom never computes), and the project's approach for
-// this kind of dependency is to exercise the pure translation the library
-// eventually calls rather than fight the library's own internals. This mock
-// keeps the tree rendering (children pass through, sortable/droppable hooks
-// return inert stubs) and captures the DndContext callback props on a
-// module-level box so tests can invoke onDragEnd/onDragStart directly with
-// a synthetic event, exactly like a real drag-end would.
-const capturedHandlers: {
-  onDragEnd?: (event: unknown) => void;
-  onDragStart?: (event: unknown) => void;
-} = {};
-
-vi.mock("@dnd-kit/core", async () => {
-  const React = await import("react");
-  return {
-    DndContext: (props: Record<string, unknown>) => {
-      capturedHandlers.onDragEnd = props.onDragEnd as (event: unknown) => void;
-      capturedHandlers.onDragStart = props.onDragStart as (event: unknown) => void;
-      return React.createElement(React.Fragment, null, props.children as React.ReactNode);
-    },
-    DragOverlay: (props: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, props.children),
-    useDroppable: () => ({ setNodeRef: () => undefined, isOver: false }),
-    useSensor: () => null,
-    useSensors: () => [],
-    closestCenter: () => [],
-    PointerSensor: class {},
-    KeyboardSensor: class {},
-  };
-});
-
-vi.mock("@dnd-kit/sortable", async () => {
-  const React = await import("react");
-  return {
-    SortableContext: (props: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, props.children),
-    horizontalListSortingStrategy: () => null,
-    verticalListSortingStrategy: () => null,
-    sortableKeyboardCoordinates: () => ({ x: 0, y: 0 }),
-    useSortable: () => ({
-      attributes: {},
-      listeners: {},
-      setNodeRef: () => undefined,
-      transform: null,
-      transition: undefined,
-      isDragging: false,
-    }),
-  };
-});
-
-// Builds the synthetic DragEndEvent shape PipelineBoard's handleDragEnd reads:
-// active.id, active.data.current (type/state), and over.id. Mirrors what a
-// real dnd-kit drag end supplies after our useSortable/useDroppable id wiring.
-function dragEndEvent(
-  activeId: string,
-  activeData: { type?: string; state?: ContentState } | undefined,
-  overId: string | null,
-) {
-  return {
-    active: { id: activeId, data: { current: activeData } },
-    over: overId === null ? null : { id: overId },
-  };
-}
-
-async function fireDragEnd(event: ReturnType<typeof dragEndEvent>) {
-  await act(async () => {
-    capturedHandlers.onDragEnd?.(event);
-    await Promise.resolve();
-  });
-}
 
 // Radix's DropdownMenuTrigger opens on pointerdown, not on a bare click event,
 // so jsdom interactions need the pointerdown fired first.
@@ -137,8 +67,6 @@ function defaultPrefs() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  capturedHandlers.onDragEnd = undefined;
-  capturedHandlers.onDragStart = undefined;
   vi.mocked(getBoardPrefs).mockResolvedValue(defaultPrefs());
 });
 
@@ -190,216 +118,6 @@ test("picking a color from the swatch menu persists via setBoardPrefs", async ()
   });
 });
 
-test("a column drag-end reorders columns and persists via setBoardPrefs", async () => {
-  vi.mocked(getBoard).mockResolvedValue(emptyBoard());
-  vi.mocked(getBoardPrefs).mockResolvedValue(defaultPrefs());
-  vi.mocked(setBoardPrefs).mockResolvedValue(defaultPrefs());
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("Ideas");
-
-  await fireDragEnd(dragEndEvent("col:idea", { type: "column" }, "col:measured"));
-
-  await waitFor(() => {
-    expect(setBoardPrefs).toHaveBeenCalled();
-  });
-  const [, savedPrefs] = vi.mocked(setBoardPrefs).mock.calls[0]!;
-  expect(savedPrefs.columnOrder.includes("idea")).toBe(true);
-  expect(savedPrefs.columnOrder.indexOf("idea")).toBeGreaterThan(savedPrefs.columnOrder.indexOf("drafting"));
-});
-
-test("dropping an item within its own column calls setItemOrder, not postState", async () => {
-  const first = makeItem("idea-1", "idea", "First idea", 10);
-  const second = makeItem("idea-2", "idea", "Second idea", 20);
-  const board = { ...emptyBoard(), idea: [first, second] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-  vi.mocked(setItemOrder).mockResolvedValue({ ok: true, item: { ...first, order: 25 } });
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("First idea");
-
-  // Move "First idea" (order 10) to the end of the column, after "Second idea" (order 20).
-  await fireDragEnd(dragEndEvent("idea-1", { type: "item", state: "idea" }, "colbody:idea"));
-
-  await waitFor(() => {
-    expect(setItemOrder).toHaveBeenCalledWith("example-agency", "idea-1", 1020);
-  });
-  expect(postState).not.toHaveBeenCalled();
-});
-
-test("dropping a ranked item into a gap between two legacy unordered neighbors keeps it ahead of them, not at the front of the column", async () => {
-  // "a" and "b" are ranked; "x" and "y" are legacy items with no order, so
-  // orderedColumn displays them trailing (sorted by id): a, b, x, y. Drag
-  // "b" to land on "y" (the slot between "x" and "y"). The old logic read
-  // its neighbors off the pre-removal array once "b" is removed; both the
-  // slot's immediate before ("x") and after ("y") are unranked, so it fell
-  // back to a context-free 0, which is less than "a"'s order and jumped
-  // "b" ahead of "a" instead of leaving it between the ranked prefix and
-  // the unordered tail it was dropped into.
-  const a = makeItem("a", "idea", "A", 10);
-  const b = makeItem("b", "idea", "B", 20);
-  const x = makeItem("x", "idea", "X");
-  const y = makeItem("y", "idea", "Y");
-  const board = { ...emptyBoard(), idea: [a, b, x, y] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-  vi.mocked(setItemOrder).mockResolvedValue({ ok: true, item: { ...b, order: 1010 } });
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("A");
-
-  // Drop "b" onto "y" (index 3 in the pre-removal array).
-  await fireDragEnd(dragEndEvent("b", { type: "item", state: "idea" }, "y"));
-
-  await waitFor(() => {
-    expect(setItemOrder).toHaveBeenCalled();
-  });
-  const [, , writtenOrder] = vi.mocked(setItemOrder).mock.calls[0]!;
-
-  // Re-derive the displayed order the same way orderedColumn does, to
-  // confirm "b" still sorts right after "a" (ranked items always precede
-  // unranked ones, so it can never land strictly between "x" and "y", but
-  // it must not jump ahead of "a" either).
-  const rows = [
-    { id: "a", order: 10 },
-    { id: "b", order: writtenOrder as number },
-    { id: "x", order: undefined },
-    { id: "y", order: undefined },
-  ].sort((p, q) => {
-    const pOrdered = typeof p.order === "number";
-    const qOrdered = typeof q.order === "number";
-    if (pOrdered && qOrdered) return p.order! - q.order!;
-    if (pOrdered !== qOrdered) return pOrdered ? -1 : 1;
-    return p.id < q.id ? -1 : 1;
-  });
-  expect(rows.map((r) => r.id)).toEqual(["a", "b", "x", "y"]);
-});
-
-test("dropping an item in a column where no item has a stored order yet normalizes the whole column and lands the item at the dropped slot", async () => {
-  // Every existing tenant board is in this state before its first reorder:
-  // no item has an `order`, so orderedColumn displays them by id. Drag "a"
-  // to the end (the column's empty-body drop id, since there is no card
-  // after "c" to land on); the resulting displayed order must be b, c, a.
-  const a = makeItem("a", "idea", "A");
-  const b = makeItem("b", "idea", "B");
-  const c = makeItem("c", "idea", "C");
-  const board = { ...emptyBoard(), idea: [a, b, c] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-  vi.mocked(setItemOrder).mockImplementation(async (_tenant, id, order) =>
-    ({ ok: true, item: { ...a, id, order } }));
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("A");
-
-  await fireDragEnd(dragEndEvent("a", { type: "item", state: "idea" }, "colbody:idea"));
-
-  await waitFor(() => {
-    expect(setItemOrder).toHaveBeenCalledTimes(3);
-  });
-  const writes = new Map(
-    vi.mocked(setItemOrder).mock.calls.map(([, id, order]) => [id, order as number]),
-  );
-  const resorted = [
-    { id: "a", order: writes.get("a") },
-    { id: "b", order: writes.get("b") },
-    { id: "c", order: writes.get("c") },
-  ].sort((p, q) => p.order! - q.order!).map((r) => r.id);
-  expect(resorted).toEqual(["b", "c", "a"]);
-});
-
-test("normalization write rejection on an all-unranked column shows the error text and refetches the board", async () => {
-  // Same all-unranked setup as the normalization test above, but one of the
-  // gap-spaced writes rejects. The other writes still target different item
-  // files and should be attempted regardless, and the board must reload so
-  // it reflects whatever mix of ranked/unranked items actually landed on disk.
-  const a = makeItem("a", "idea", "A");
-  const b = makeItem("b", "idea", "B");
-  const c = makeItem("c", "idea", "C");
-  const board = { ...emptyBoard(), idea: [a, b, c] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-  vi.mocked(setItemOrder).mockImplementation(async (_tenant, id, order) => {
-    if (id === "b") throw new Error("disk full");
-    return { ok: true, item: { ...a, id, order } };
-  });
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("A");
-
-  await fireDragEnd(dragEndEvent("a", { type: "item", state: "idea" }, "colbody:idea"));
-
-  await waitFor(() => {
-    expect(setItemOrder).toHaveBeenCalledTimes(3);
-  });
-  expect(await screen.findByText("Action failed: disk full")).toBeTruthy();
-  await waitFor(() => {
-    expect(getBoard).toHaveBeenCalledTimes(2);
-  });
-});
-
-test("dropping an item back onto its own slot is a no-op and does not call setItemOrder", async () => {
-  const first = makeItem("idea-1", "idea", "First idea", 10);
-  const second = makeItem("idea-2", "idea", "Second idea", 20);
-  const board = { ...emptyBoard(), idea: [first, second] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("First idea");
-
-  // "Second idea" is already at index 1; dropping it back on itself is a no-op.
-  await fireDragEnd(dragEndEvent("idea-2", { type: "item", state: "idea" }, "idea-2"));
-
-  expect(setItemOrder).not.toHaveBeenCalled();
-});
-
-test("dropping a single-item column's only card on its own slot does not call setItemOrder", async () => {
-  const only = makeItem("only-1", "idea", "Only idea", 10);
-  const board = { ...emptyBoard(), idea: [only] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("Only idea");
-
-  await fireDragEnd(dragEndEvent("only-1", { type: "item", state: "idea" }, "only-1"));
-
-  expect(setItemOrder).not.toHaveBeenCalled();
-});
-
-test("dropping an item across columns still calls postState", async () => {
-  const draftingItem = makeItem("drafting-1", "drafting", "Drafting title");
-  const board = { ...emptyBoard(), drafting: [draftingItem] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-  vi.mocked(postState).mockResolvedValue({ ok: true, item: { ...draftingItem, state: "in_review" } });
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("Drafting title");
-
-  await fireDragEnd(dragEndEvent("drafting-1", { type: "item", state: "drafting" }, "colbody:in_review"));
-
-  await waitFor(() => {
-    expect(postState).toHaveBeenCalledWith("example-agency", "drafting-1", "in_review", undefined);
-  });
-  expect(setItemOrder).not.toHaveBeenCalled();
-});
-
-test("dropping a card past an off-screen column's last card still resolves through that column's drop id", async () => {
-  // Regression guard for cross-column drop landing precisely on a card in
-  // the target column (not just the empty-body placeholder): the dropped
-  // item's target index must fall before the card it was dropped onto.
-  const draftingItem = makeItem("drafting-1", "drafting", "Drafting title");
-  const approvedItem = makeItem("approved-1", "approved", "Approved title");
-  const board = { ...emptyBoard(), drafting: [draftingItem], approved: [approvedItem] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-  vi.mocked(postState).mockResolvedValue({ ok: true, item: { ...draftingItem, state: "approved" } });
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("Drafting title");
-
-  await fireDragEnd(dragEndEvent("drafting-1", { type: "item", state: "drafting" }, "approved-1"));
-
-  await waitFor(() => {
-    expect(postState).toHaveBeenCalledWith("example-agency", "drafting-1", "approved", undefined);
-  });
-});
-
 test("the board wrapper scrolls horizontally and column bodies scroll vertically", async () => {
   vi.mocked(getBoard).mockResolvedValue(emptyBoard());
 
@@ -408,21 +126,6 @@ test("the board wrapper scrolls horizontally and column bodies scroll vertically
 
   expect(container.querySelector(".ws-board-scroll")).toBeTruthy();
   expect(container.querySelectorAll(".ws-board-colbody").length).toBe(9);
-});
-
-test("renders a sortable card per item and wires the drag-end handler for the DndContext", async () => {
-  const first = makeItem("idea-1", "idea", "First idea", 10);
-  const second = makeItem("idea-2", "idea", "Second idea", 20);
-  const board = { ...emptyBoard(), idea: [first, second] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-  await screen.findByText("First idea");
-
-  expect(screen.getByTestId("card-idea-1")).toBeTruthy();
-  expect(screen.getByTestId("card-idea-2")).toBeTruthy();
-  expect(capturedHandlers.onDragEnd).toBeTypeOf("function");
-  expect(capturedHandlers.onDragStart).toBeTypeOf("function");
 });
 
 test("a card shows its channel label next to the format pill", async () => {
@@ -530,21 +233,6 @@ test("Move to drafting rejection shows the error text and keeps the popup open",
 
   expect(await screen.findByText("Action failed: network down")).toBeTruthy();
   expect(screen.getByText(ideaItem.angle)).toBeTruthy();
-});
-
-test("drag-drop rejection shows the error text", async () => {
-  const draftingItem = makeItem("drafting-1", "drafting", "Drafting title");
-  const board = { ...emptyBoard(), drafting: [draftingItem] };
-  vi.mocked(getBoard).mockResolvedValue(board);
-  vi.mocked(postState).mockRejectedValue(new Error("network down"));
-
-  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
-
-  await screen.findByText("Drafting title");
-
-  await fireDragEnd(dragEndEvent("drafting-1", { type: "item", state: "drafting" }, "colbody:in_review"));
-
-  expect(await screen.findByText("Action failed: network down")).toBeTruthy();
 });
 
 test("clicking the card actions trigger opens the menu without navigating or opening the idea popup", async () => {

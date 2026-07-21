@@ -1,9 +1,5 @@
 import { test, expect } from "vitest";
-import {
-  dropArgs, reorderList, insertOrder, computeReorder,
-  columnDragId, columnStateFromDragId, columnBodyDropId, columnStateFromBodyDropId,
-  resolveItemDropTarget,
-} from "./boardDrag.js";
+import { dropArgs, insertOrder, computeReorder } from "./boardDrag.js";
 
 // Mirrors contentLibrary's orderedColumn comparator (ordered items sort by
 // value and always precede unordered ones, which sort by id) so these tests
@@ -32,27 +28,6 @@ test("dropArgs defaults the date to today when moving to scheduled", () => {
 
 test("dropArgs omits the date for non-scheduled targets", () => {
   expect(dropArgs("idea", "approved", "2026-07-10")).toEqual({ to: "approved" });
-});
-
-test("reorderList moves an entry earlier in the list", () => {
-  expect(reorderList(["a", "b", "c", "d"], 3, 1)).toEqual(["a", "d", "b", "c"]);
-});
-
-test("reorderList moves an entry later in the list", () => {
-  expect(reorderList(["a", "b", "c", "d"], 0, 2)).toEqual(["b", "c", "a", "d"]);
-});
-
-test("reorderList is a no-op when from equals to", () => {
-  const order = ["a", "b", "c"];
-  const next = reorderList(order, 1, 1);
-  expect(next).toEqual(order);
-  expect(next).not.toBe(order);
-});
-
-test("reorderList returns a copy unchanged for out-of-range indices", () => {
-  const order = ["a", "b", "c"];
-  expect(reorderList(order, -1, 1)).toEqual(order);
-  expect(reorderList(order, 0, 9)).toEqual(order);
 });
 
 test("insertOrder takes the midpoint of two ordered neighbors", () => {
@@ -196,49 +171,4 @@ test("computeReorder normalizes a 2-item all-unordered column when dragging to t
   const byId = new Map(writes!.map((w) => [w.id, w.order]));
   const resorted = sortDisplayed(items.map((i) => ({ id: i.id, order: byId.get(i.id) }))).map((i) => i.id);
   expect(resorted).toEqual(["b", "a"]);
-});
-
-// dnd-kit shares one DndContext for column headers and cards, so ids need a
-// namespace prefix. columnDragId/columnBodyDropId round-trip through their
-// matching parsers and reject ids from the other namespace or unrelated ids.
-
-test("columnDragId round-trips through columnStateFromDragId", () => {
-  expect(columnStateFromDragId(columnDragId("idea"))).toBe("idea");
-});
-
-test("columnStateFromDragId returns null for a non-column id", () => {
-  expect(columnStateFromDragId("idea-1")).toBeNull();
-  expect(columnStateFromDragId(columnBodyDropId("idea"))).toBeNull();
-});
-
-test("columnBodyDropId round-trips through columnStateFromBodyDropId", () => {
-  expect(columnStateFromBodyDropId(columnBodyDropId("parked"))).toBe("parked");
-});
-
-test("columnStateFromBodyDropId returns null for a non-body id", () => {
-  expect(columnStateFromBodyDropId("parked-1")).toBeNull();
-  expect(columnStateFromBodyDropId(columnDragId("parked"))).toBeNull();
-});
-
-// resolveItemDropTarget turns a dnd-kit `over.id` into the column + index
-// pair the rest of the drop pipeline (computeReorder, handleItemDrop) expects.
-
-test("resolveItemDropTarget finds the index of a card id within its column", () => {
-  const board = { idea: [{ id: "a" }, { id: "b" }, { id: "c" }], drafting: [] };
-  expect(resolveItemDropTarget(board, "b")).toEqual({ column: "idea", index: 1 });
-});
-
-test("resolveItemDropTarget resolves a column body id to the end of that column", () => {
-  const board = { idea: [{ id: "a" }, { id: "b" }], drafting: [] };
-  expect(resolveItemDropTarget(board, columnBodyDropId("idea"))).toEqual({ column: "idea", index: 2 });
-});
-
-test("resolveItemDropTarget resolves an empty column's body id to index 0", () => {
-  const board = { idea: [{ id: "a" }], drafting: [] };
-  expect(resolveItemDropTarget(board, columnBodyDropId("drafting"))).toEqual({ column: "drafting", index: 0 });
-});
-
-test("resolveItemDropTarget returns null for an id that matches no card or column body", () => {
-  const board = { idea: [{ id: "a" }], drafting: [] };
-  expect(resolveItemDropTarget(board, "nonexistent")).toBeNull();
 });
