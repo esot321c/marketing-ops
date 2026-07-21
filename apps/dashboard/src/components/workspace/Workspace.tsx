@@ -30,7 +30,7 @@ function isSection(v: string): v is Section {
   return CONTENT_SECTIONS.has(v as Section) || STAGE_SECTIONS.has(v) || WORK_SECTIONS.has(v) || v === "ask";
 }
 
-export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; tenantName: string; themeMode: ThemeMode }) {
+export function Workspace({ tenant, tenantName, siteDomain, themeMode }: { tenant: string; tenantName: string; siteDomain?: string; themeMode: ThemeMode }) {
   const params = useParams<{ section?: string; itemId?: string }>();
   const navigate = useNavigate();
   const search = `?tenant=${encodeURIComponent(tenant)}`;
@@ -122,7 +122,7 @@ export function Workspace({ tenant, tenantName, themeMode }: { tenant: string; t
           </div>
         );
       }
-      if (active === "board") return <PipelineBoard tenant={tenant} onOpen={open} />;
+      if (active === "board") return <PipelineBoard tenant={tenant} siteDomain={siteDomain} onOpen={open} />;
       if (active === "composer") return itemId ? <Composer tenant={tenant} tenantName={tenantName} itemId={itemId} /> : <p className="ws-slate" style={{ fontSize: 13 }}>Open a piece from Today or the board.</p>;
       if (active === "cadence") return <CadencePanel tenant={tenant} tenantName={tenantName} />;
       if (active === "learnings") return <LearningsPanel tenant={tenant} />;

@@ -1,5 +1,29 @@
 import type { ContentState } from "./contentTypes";
 
+// dnd-kit shares one DndContext for both column headers and cards, so every
+// draggable/droppable id needs a namespace prefix to tell the two kinds apart
+// (a ContentState string and a card id could otherwise collide) and, for
+// columns, to tell a column drag from a card dropped on that column's own
+// empty-body placeholder.
+const COLUMN_PREFIX = "col:";
+const COLUMN_BODY_PREFIX = "colbody:";
+
+export function columnDragId(state: ContentState): string {
+  return `${COLUMN_PREFIX}${state}`;
+}
+
+export function columnStateFromDragId(id: string): ContentState | null {
+  return id.startsWith(COLUMN_PREFIX) ? (id.slice(COLUMN_PREFIX.length) as ContentState) : null;
+}
+
+export function columnBodyDropId(state: ContentState): string {
+  return `${COLUMN_BODY_PREFIX}${state}`;
+}
+
+export function columnStateFromBodyDropId(id: string): ContentState | null {
+  return id.startsWith(COLUMN_BODY_PREFIX) ? (id.slice(COLUMN_BODY_PREFIX.length) as ContentState) : null;
+}
+
 export function dropArgs(
   source: ContentState,
   target: ContentState,
@@ -131,4 +155,78 @@ export function computeReorder(
   const before = nearestRanked(remaining, adjustedIndex - 1, -1);
   const after = nearestRanked(remaining, adjustedIndex, 1);
   return [{ id: draggedId, order: insertOrder(before, after) }];
+}
+
+export interface ItemDropTarget {
+  column: ContentState;
+  index: number;
+}
+
+// Resolves a dnd-kit card drag's `over.id` (either another card's id, or a
+// column's empty-body placeholder id) into the target column and the
+// pre-removal drop index computeReorder/handleItemDrop expect. `board` maps
+// each column to its items in the CURRENT DISPLAYED order. Returns null when
+// `overId` matches neither a known card nor a known column body (for example
+// the drag ended outside any droppable).
+export function resolveItemDropTarget(
+  board: Partial<Record<ContentState, { id: string }[]>>,
+  overId: string,
+): ItemDropTarget | null {
+  const bodyState = columnStateFromBodyDropId(overId);
+  if (bodyState !== null && board[bodyState] !== undefined) {
+    return { column: bodyState, index: board[bodyState].length };
+  }
+  for (const column of Object.keys(board) as ContentState[]) {
+    const index = board[column]!.findIndex((i) => i.id === overId);
+    if (index !== -1) return { column, index };
+  }
+  return null;
+}
+
+export type DragEndAction =
+  | { kind: "column-reorder"; columnOrder: ContentState[] }
+  | { kind: "same-column"; column: ContentState; id: string; index: number }
+  | { kind: "cross-column"; id: string; source: ContentState; target: ContentState };
+
+// Minimal shape of a dnd-kit DragEndEvent this module needs: just the two
+// identifiers and whatever `data.current` the draggable attached. Kept
+// structural (rather than importing @dnd-kit/core's type) so this stays a
+// plain, dependency-free unit to test.
+export interface DragEndLike {
+  active: { id: string; data: { current?: { type?: string; state?: ContentState } } };
+  over: { id: string } | null;
+}
+
+// Translates a dnd-kit drag-end event into the one action the caller needs
+// to persist, given the board's current columns (in DISPLAYED order) and the
+// saved column order. Returns null for every case that is a no-op: dropped
+// outside any droppable, dropped on itself, or an unresolvable target.
+export function resolveDragEndAction(
+  event: DragEndLike,
+  board: Partial<Record<ContentState, { id: string }[]>>,
+  columnOrder: ContentState[],
+): DragEndAction | null {
+  const { active, over } = event;
+  if (!over) return null;
+
+  if (active.data.current?.type === "column") {
+    const source = columnStateFromDragId(active.id);
+    const overColumn = columnStateFromDragId(over.id);
+    if (!source || !overColumn || source === overColumn) return null;
+    const from = columnOrder.indexOf(source);
+    const to = columnOrder.indexOf(overColumn);
+    if (from === -1 || to === -1) return null;
+    return { kind: "column-reorder", columnOrder: reorderList(columnOrder, from, to) };
+  }
+
+  const source = active.data.current?.state;
+  if (!source) return null;
+
+  const target = resolveItemDropTarget(board, over.id);
+  if (!target) return null;
+
+  if (source === target.column) {
+    return { kind: "same-column", column: target.column, id: active.id, index: target.index };
+  }
+  return { kind: "cross-column", id: active.id, source, target: target.column };
 }

@@ -12,6 +12,7 @@ export function parseTenantSummary(json: unknown): TenantSummary | null {
   return {
     id: obj["id"],
     name: typeof obj["name"] === "string" ? obj["name"] : obj["id"],
+    ...(typeof obj["domain"] === "string" ? { domain: obj["domain"] } : {}),
   };
 }
 

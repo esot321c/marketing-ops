@@ -1,5 +1,9 @@
 import { test, expect } from "vitest";
-import { dropArgs, reorderList, insertOrder, computeReorder } from "./boardDrag.js";
+import {
+  dropArgs, reorderList, insertOrder, computeReorder,
+  columnDragId, columnStateFromDragId, columnBodyDropId, columnStateFromBodyDropId,
+  resolveItemDropTarget,
+} from "./boardDrag.js";
 
 // Mirrors contentLibrary's orderedColumn comparator (ordered items sort by
 // value and always precede unordered ones, which sort by id) so these tests
@@ -192,4 +196,49 @@ test("computeReorder normalizes a 2-item all-unordered column when dragging to t
   const byId = new Map(writes!.map((w) => [w.id, w.order]));
   const resorted = sortDisplayed(items.map((i) => ({ id: i.id, order: byId.get(i.id) }))).map((i) => i.id);
   expect(resorted).toEqual(["b", "a"]);
+});
+
+// dnd-kit shares one DndContext for column headers and cards, so ids need a
+// namespace prefix. columnDragId/columnBodyDropId round-trip through their
+// matching parsers and reject ids from the other namespace or unrelated ids.
+
+test("columnDragId round-trips through columnStateFromDragId", () => {
+  expect(columnStateFromDragId(columnDragId("idea"))).toBe("idea");
+});
+
+test("columnStateFromDragId returns null for a non-column id", () => {
+  expect(columnStateFromDragId("idea-1")).toBeNull();
+  expect(columnStateFromDragId(columnBodyDropId("idea"))).toBeNull();
+});
+
+test("columnBodyDropId round-trips through columnStateFromBodyDropId", () => {
+  expect(columnStateFromBodyDropId(columnBodyDropId("parked"))).toBe("parked");
+});
+
+test("columnStateFromBodyDropId returns null for a non-body id", () => {
+  expect(columnStateFromBodyDropId("parked-1")).toBeNull();
+  expect(columnStateFromBodyDropId(columnDragId("parked"))).toBeNull();
+});
+
+// resolveItemDropTarget turns a dnd-kit `over.id` into the column + index
+// pair the rest of the drop pipeline (computeReorder, handleItemDrop) expects.
+
+test("resolveItemDropTarget finds the index of a card id within its column", () => {
+  const board = { idea: [{ id: "a" }, { id: "b" }, { id: "c" }], drafting: [] };
+  expect(resolveItemDropTarget(board, "b")).toEqual({ column: "idea", index: 1 });
+});
+
+test("resolveItemDropTarget resolves a column body id to the end of that column", () => {
+  const board = { idea: [{ id: "a" }, { id: "b" }], drafting: [] };
+  expect(resolveItemDropTarget(board, columnBodyDropId("idea"))).toEqual({ column: "idea", index: 2 });
+});
+
+test("resolveItemDropTarget resolves an empty column's body id to index 0", () => {
+  const board = { idea: [{ id: "a" }], drafting: [] };
+  expect(resolveItemDropTarget(board, columnBodyDropId("drafting"))).toEqual({ column: "drafting", index: 0 });
+});
+
+test("resolveItemDropTarget returns null for an id that matches no card or column body", () => {
+  const board = { idea: [{ id: "a" }], drafting: [] };
+  expect(resolveItemDropTarget(board, "nonexistent")).toBeNull();
 });

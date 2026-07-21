@@ -1,9 +1,31 @@
-import { useCallback, useEffect, useState } from "react";
-import type { DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent as DndKitDragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder, duplicateItem, deleteItem } from "@/lib/api";
 import { useLiveData } from "@/hooks/useLiveData";
 import { ALL_BOARD_STATES, COLUMN_COLORS, type BoardPrefs } from "@/lib/contentLibrary";
-import { computeReorder, dropArgs, reorderList } from "@/lib/boardDrag";
+import {
+  computeReorder, dropArgs,
+  columnDragId, columnBodyDropId, resolveDragEndAction, type DragEndLike,
+} from "@/lib/boardDrag";
 import type { ContentItem, ContentState } from "@/lib/contentTypes";
 import { channelLabel, effectiveFormat } from "@/lib/contentTypes";
 import { IdeaReviewPopup } from "./IdeaReviewPopup";
@@ -130,17 +152,185 @@ function CardMenu({
   );
 }
 
-export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id: string) => void }) {
+function SortableCard({
+  item,
+  state,
+  siteDomain,
+  columnOrder,
+  cardMenuFor,
+  onCardMenuOpenChange,
+  onOpen,
+  onCardClick,
+  onMoveTo,
+  onDuplicate,
+  onDelete,
+}: {
+  item: ContentItem;
+  state: ContentState;
+  siteDomain?: string;
+  columnOrder: ContentState[];
+  cardMenuFor: string | null;
+  onCardMenuOpenChange: (id: string, open: boolean) => void;
+  onOpen: (id: string) => void;
+  onCardClick: (state: ContentState, item: ContentItem) => void;
+  onMoveTo: (id: string, target: ContentState) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    data: { type: "item", state },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={{ ...style, position: "relative" }} data-testid={`card-${item.id}`}>
+      <button
+        type="button"
+        className="ws-card-btn ws-board-card"
+        {...attributes}
+        {...listeners}
+        onClick={() => onCardClick(state, item)}
+      >
+        <div className="ws-ink ws-board-card-title" style={{ paddingRight: 20 }}>{item.title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+          <span className="ws-pill ws-pill-mono">{effectiveFormat(item)}</span>
+          <span className="ws-slate" aria-hidden="true">&middot;</span>
+          <span className="ws-pill ws-pill-mono">{channelLabel(item.channel, siteDomain)}</span>
+        </div>
+      </button>
+      <CardMenu
+        item={item}
+        state={state}
+        columnOrder={columnOrder}
+        open={cardMenuFor === item.id}
+        onOpenChange={(next) => onCardMenuOpenChange(item.id, next)}
+        onOpen={onOpen}
+        onMoveTo={onMoveTo}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+      />
+    </div>
+  );
+}
+
+function ColumnBody({
+  state,
+  items,
+  children,
+}: {
+  state: ContentState;
+  items: ContentItem[];
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: columnBodyDropId(state) });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="ws-board-colbody"
+      style={{
+        background: isOver
+          ? "color-mix(in srgb, var(--ws-accent) 14%, transparent)"
+          : "color-mix(in srgb, var(--ws-band) 40%, transparent)",
+        border: isOver ? "1px solid var(--ws-accent)" : "1px solid var(--ws-line)",
+      }}
+    >
+      <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </div>
+  );
+}
+
+function SortableColumnHead({
+  state,
+  items,
+  colorMenuFor,
+  dotColor,
+  onToggleColorMenu,
+  onPickColor,
+}: {
+  state: ContentState;
+  items: ContentItem[];
+  colorMenuFor: ContentState | null;
+  dotColor: string | undefined;
+  onToggleColorMenu: (state: ContentState) => void;
+  onPickColor: (state: ContentState, color: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: columnDragId(state),
+    data: { type: "column" },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="ws-board-colhead"
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <button
+          type="button"
+          aria-label={`Color for ${LABELS[state]}`}
+          className="ws-board-dot"
+          style={{ background: dotColor }}
+          onClick={(e) => { e.stopPropagation(); onToggleColorMenu(state); }}
+          onPointerDown={(e) => e.stopPropagation()}
+        />
+        <span className="ws-ink" style={{ fontSize: 12.5, fontWeight: 600 }}>{LABELS[state]}</span>
+      </div>
+      <span className="ws-slate ws-mono" style={{ fontSize: 11 }}>{items.length}</span>
+
+      {colorMenuFor === state ? (
+        <div
+          className="ws-board-swatchmenu"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {Object.keys(COLUMN_COLORS).map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-label={key}
+              className="ws-board-dot"
+              style={{ background: COLUMN_COLORS[key] }}
+              onClick={() => onPickColor(state, key)}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function PipelineBoard({ tenant, siteDomain, onOpen }: { tenant: string; siteDomain?: string; onOpen: (id: string) => void }) {
   const fetch = useCallback(() => getBoard(tenant), [tenant]);
   const { data, reload } = useLiveData<Record<ContentState, ContentItem[]>>(fetch, (p) => p.includes(`/content/${tenant}/`));
   const [prefs, setPrefs] = useState<BoardPrefs>(DEFAULT_PREFS);
-  const [dragOverColumn, setDragOverColumn] = useState<ContentState | null>(null);
-  const [dragOverItem, setDragOverItem] = useState<{ state: ContentState; index: number } | null>(null);
-  const [draggingColumn, setDraggingColumn] = useState<ContentState | null>(null);
   const [colorMenuFor, setColorMenuFor] = useState<ContentState | null>(null);
   const [reviewItem, setReviewItem] = useState<ContentItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [cardMenuFor, setCardMenuFor] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -162,50 +352,26 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
     }
   }
 
-  async function handleColumnDrop(target: ContentState) {
-    setDragOverColumn(null);
-    const source = draggingColumn;
-    setDraggingColumn(null);
-    if (!source || source === target) return;
-    const from = prefs.columnOrder.indexOf(source);
-    const to = prefs.columnOrder.indexOf(target);
-    if (from === -1 || to === -1) return;
-    await persistPrefs({ ...prefs, columnOrder: reorderList(prefs.columnOrder, from, to) });
-  }
-
   async function pickColor(state: ContentState, color: string) {
     setColorMenuFor(null);
     await persistPrefs({ ...prefs, columnColors: { ...prefs.columnColors, [state]: color } });
   }
 
-  async function handleItemDrop(target: ContentState, index: number, e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOverColumn(null);
-    setDragOverItem(null);
-    const id = e.dataTransfer.getData("application/x-item-id");
-    const source = e.dataTransfer.getData("application/x-item-state") as ContentState;
-    if (!id || !source || !data) return;
-
-    if (source === target) {
-      // data[target] is already in displayed order (orderedColumn); index is
-      // the drop-slot position in that same pre-removal array. Ordinarily
-      // computeReorder returns a single write for the moved item, but the
-      // first-touch all-unranked column returns one write per item (a
-      // one-time normalization), so every write in the list is applied.
-      const writes = computeReorder(data[target], id, index);
-      if (writes === null) return;
-      setActionError(null);
-      const results = await Promise.allSettled(writes.map((w) => setItemOrder(tenant, w.id, w.order)));
-      const firstRejection = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
-      if (firstRejection) {
-        const reason = firstRejection.reason;
-        setActionError(reason instanceof Error ? reason.message : String(reason));
-      }
-      reload();
-      return;
+  async function moveItemWithinColumn(target: ContentState, id: string, index: number) {
+    if (!data) return;
+    const writes = computeReorder(data[target], id, index);
+    if (writes === null) return;
+    setActionError(null);
+    const results = await Promise.allSettled(writes.map((w) => setItemOrder(tenant, w.id, w.order)));
+    const firstRejection = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (firstRejection) {
+      const reason = firstRejection.reason;
+      setActionError(reason instanceof Error ? reason.message : String(reason));
     }
+    reload();
+  }
 
+  async function moveItemAcrossColumns(id: string, source: ContentState, target: ContentState) {
     const today = new Date().toISOString().slice(0, 10);
     const args = dropArgs(source, target, today);
     if (!args) return;
@@ -218,10 +384,30 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
     }
   }
 
-  async function handleColumnBodyDrop(target: ContentState, e: DragEvent<HTMLDivElement>) {
-    // A drop on the column body (not on a specific card) lands after the last item.
-    const count = data ? data[target].length : 0;
-    await handleItemDrop(target, count, e);
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
+  async function handleDragEnd(event: DndKitDragEndEvent) {
+    setActiveId(null);
+    if (!data) return;
+    const normalized: DragEndLike = {
+      active: {
+        id: String(event.active.id),
+        data: { current: event.active.data.current as { type?: string; state?: ContentState } | undefined },
+      },
+      over: event.over ? { id: String(event.over.id) } : null,
+    };
+    const action = resolveDragEndAction(normalized, data, prefs.columnOrder);
+    if (!action) return;
+
+    if (action.kind === "column-reorder") {
+      await persistPrefs({ ...prefs, columnOrder: action.columnOrder });
+    } else if (action.kind === "same-column") {
+      await moveItemWithinColumn(action.column, action.id, action.index);
+    } else {
+      await moveItemAcrossColumns(action.id, action.source, action.target);
+    }
   }
 
   function handleCardClick(state: ContentState, item: ContentItem) {
@@ -273,6 +459,15 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
     }
   }
 
+  const activeItem = useMemo(() => {
+    if (!data || !activeId) return null;
+    for (const state of prefs.columnOrder) {
+      const found = data[state]?.find((i) => i.id === activeId);
+      if (found) return found;
+    }
+    return null;
+  }, [data, activeId, prefs.columnOrder]);
+
   return (
     <div className="ws-board-page" style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
       <header style={{ flex: "0 0 auto" }}>
@@ -288,128 +483,70 @@ export function PipelineBoard({ tenant, onOpen }: { tenant: string; onOpen: (id:
       {!data ? (
         <p className="ws-slate" style={{ fontSize: 13 }}>Loading…</p>
       ) : (
-        <div className="ws-board-scroll">
-          <div className="ws-board-row">
-            {prefs.columnOrder.map((state) => {
-              const colorKey = prefs.columnColors?.[state] ?? "default";
-              const dotColor = COLUMN_COLORS[colorKey] ?? COLUMN_COLORS.default;
-              const items = data[state];
-              return (
-                <div key={state} className="ws-board-col">
-                  <div
-                    className="ws-board-colhead"
-                    draggable
-                    onDragStart={(e) => {
-                      setDraggingColumn(state);
-                      e.dataTransfer.setData("application/x-column-state", state);
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    onDragEnd={() => setDraggingColumn(null)}
-                    onDragOver={(e) => { e.preventDefault(); setDragOverColumn(state); }}
-                    onDragLeave={() => setDragOverColumn((s) => (s === state ? null : s))}
-                    onDrop={(e) => { e.preventDefault(); void handleColumnDrop(state); }}
-                    style={{
-                      background: dragOverColumn === state && draggingColumn && draggingColumn !== state
-                        ? "color-mix(in srgb, var(--ws-accent) 14%, transparent)"
-                        : undefined,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <button
-                        type="button"
-                        aria-label={`Color for ${LABELS[state]}`}
-                        className="ws-board-dot"
-                        style={{ background: dotColor }}
-                        onClick={() => setColorMenuFor((s) => (s === state ? null : state))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          autoScroll={{ threshold: { x: 0.2, y: 0.2 } }}
+          onDragStart={handleDragStart}
+          onDragEnd={(e) => void handleDragEnd(e)}
+          onDragCancel={() => setActiveId(null)}
+        >
+          <div className="ws-board-scroll">
+            <SortableContext items={prefs.columnOrder.map(columnDragId)} strategy={horizontalListSortingStrategy}>
+              <div className="ws-board-row">
+                {prefs.columnOrder.map((state) => {
+                  const colorKey = prefs.columnColors?.[state] ?? "default";
+                  const dotColor = COLUMN_COLORS[colorKey] ?? COLUMN_COLORS.default;
+                  const items = data[state];
+                  return (
+                    <div key={state} className="ws-board-col">
+                      <SortableColumnHead
+                        state={state}
+                        items={items}
+                        colorMenuFor={colorMenuFor}
+                        dotColor={dotColor}
+                        onToggleColorMenu={(s) => setColorMenuFor((cur) => (cur === s ? null : s))}
+                        onPickColor={(s, color) => void pickColor(s, color)}
                       />
-                      <span className="ws-ink" style={{ fontSize: 12.5, fontWeight: 600 }}>{LABELS[state]}</span>
-                    </div>
-                    <span className="ws-slate ws-mono" style={{ fontSize: 11 }}>{items.length}</span>
 
-                    {colorMenuFor === state ? (
-                      <div className="ws-board-swatchmenu" onClick={(e) => e.stopPropagation()}>
-                        {Object.keys(COLUMN_COLORS).map((key) => (
-                          <button
-                            key={key}
-                            type="button"
-                            aria-label={key}
-                            className="ws-board-dot"
-                            style={{ background: COLUMN_COLORS[key] }}
-                            onClick={() => void pickColor(state, key)}
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div
-                    className="ws-board-colbody"
-                    onDragOver={(e) => { e.preventDefault(); setDragOverColumn(state); }}
-                    onDragLeave={() => setDragOverColumn((s) => (s === state ? null : s))}
-                    onDrop={(e) => void handleColumnBodyDrop(state, e)}
-                    style={{
-                      background: dragOverColumn === state && !draggingColumn
-                        ? "color-mix(in srgb, var(--ws-accent) 14%, transparent)"
-                        : "color-mix(in srgb, var(--ws-band) 40%, transparent)",
-                      border: dragOverColumn === state && !draggingColumn ? "1px solid var(--ws-accent)" : "1px solid var(--ws-line)",
-                    }}
-                  >
-                    {items.map((i, index) => (
-                      <div key={i.id}>
-                        <div
-                          className="ws-board-dropslot"
-                          data-testid={`dropslot-${state}-${index}`}
-                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverItem({ state, index }); }}
-                          onDrop={(e) => { e.stopPropagation(); void handleItemDrop(state, index, e); }}
-                          style={{ height: dragOverItem?.state === state && dragOverItem.index === index ? 8 : 0 }}
-                        />
-                        <div style={{ position: "relative" }}>
-                          <button
-                            type="button"
-                            className="ws-card-btn ws-board-card"
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData("application/x-item-id", i.id);
-                              e.dataTransfer.setData("application/x-item-state", state);
-                              e.dataTransfer.effectAllowed = "move";
-                            }}
-                            onDragEnd={() => { setDragOverColumn(null); setDragOverItem(null); }}
-                            onClick={() => handleCardClick(state, i)}
-                          >
-                            <div className="ws-ink ws-board-card-title" style={{ paddingRight: 20 }}>{i.title}</div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                              <span className="ws-pill ws-pill-mono">{effectiveFormat(i)}</span>
-                              <span className="ws-slate" aria-hidden="true">&middot;</span>
-                              <span className="ws-pill ws-pill-mono">{channelLabel(i.channel)}</span>
-                            </div>
-                          </button>
-                          <CardMenu
+                      <ColumnBody state={state} items={items}>
+                        {items.map((i) => (
+                          <SortableCard
+                            key={i.id}
                             item={i}
                             state={state}
+                            siteDomain={siteDomain}
                             columnOrder={prefs.columnOrder}
-                            open={cardMenuFor === i.id}
-                            onOpenChange={(next) => setCardMenuFor(next ? i.id : null)}
+                            cardMenuFor={cardMenuFor}
+                            onCardMenuOpenChange={(id, open) => setCardMenuFor(open ? id : null)}
                             onOpen={onOpen}
+                            onCardClick={handleCardClick}
                             onMoveTo={(id, target) => void handleCardMoveTo(id, target)}
                             onDuplicate={(id) => void handleCardDuplicate(id)}
                             onDelete={(id) => void handleCardDelete(id)}
                           />
-                        </div>
-                      </div>
-                    ))}
-                    <div
-                      className="ws-board-dropslot"
-                      data-testid={`dropslot-${state}-${items.length}`}
-                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverItem({ state, index: items.length }); }}
-                      onDrop={(e) => { e.stopPropagation(); void handleItemDrop(state, items.length, e); }}
-                      style={{ height: dragOverItem?.state === state && dragOverItem.index === items.length ? 8 : 4 }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                        ))}
+                      </ColumnBody>
+                    </div>
+                  );
+                })}
+              </div>
+            </SortableContext>
           </div>
-        </div>
+
+          <DragOverlay>
+            {activeItem ? (
+              <div className="ws-card-btn ws-board-card" style={{ cursor: "grabbing" }}>
+                <div className="ws-ink ws-board-card-title">{activeItem.title}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                  <span className="ws-pill ws-pill-mono">{effectiveFormat(activeItem)}</span>
+                  <span className="ws-slate" aria-hidden="true">&middot;</span>
+                  <span className="ws-pill ws-pill-mono">{channelLabel(activeItem.channel, siteDomain)}</span>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {reviewItem ? (

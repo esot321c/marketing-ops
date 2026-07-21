@@ -8,7 +8,7 @@ export interface InitState { tenantId: string; stages: Record<StageId, StageStat
 export type ProfileChannel = "linkedin";
 export type ProfileStateName = "drafting" | "in_review" | "approved" | "applied";
 export interface ProfileSpec { tenantId: string; channel: ProfileChannel; state: ProfileStateName; sections: Record<string, unknown>; }
-export interface TenantSummary { id: string; name: string; }
+export interface TenantSummary { id: string; name: string; domain?: string; }
 export interface WorkArtifactSummary { slug: string; title: string; created: string; status: string; }
 export interface WorkArtifact extends WorkArtifactSummary { body: string; }
 export type WorkCounts = Record<string, number>;

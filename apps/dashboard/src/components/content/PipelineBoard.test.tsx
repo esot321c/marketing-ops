@@ -1,6 +1,6 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import { test, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { PipelineBoard } from "./PipelineBoard.js";
 import { getBoard, getBoardPrefs, postState, setBoardPrefs, setItemOrder, duplicateItem, deleteItem } from "@/lib/api";
 import { ALL_BOARD_STATES } from "@/lib/contentLibrary";
@@ -20,6 +20,76 @@ vi.mock("@/lib/api", () => ({
   duplicateItem: vi.fn(),
   deleteItem: vi.fn(),
 }));
+
+// jsdom cannot simulate dnd-kit's real pointer-drag physics (it depends on
+// element geometry jsdom never computes), and the project's approach for
+// this kind of dependency is to exercise the pure translation the library
+// eventually calls rather than fight the library's own internals. This mock
+// keeps the tree rendering (children pass through, sortable/droppable hooks
+// return inert stubs) and captures the DndContext callback props on a
+// module-level box so tests can invoke onDragEnd/onDragStart directly with
+// a synthetic event, exactly like a real drag-end would.
+const capturedHandlers: {
+  onDragEnd?: (event: unknown) => void;
+  onDragStart?: (event: unknown) => void;
+} = {};
+
+vi.mock("@dnd-kit/core", async () => {
+  const React = await import("react");
+  return {
+    DndContext: (props: Record<string, unknown>) => {
+      capturedHandlers.onDragEnd = props.onDragEnd as (event: unknown) => void;
+      capturedHandlers.onDragStart = props.onDragStart as (event: unknown) => void;
+      return React.createElement(React.Fragment, null, props.children as React.ReactNode);
+    },
+    DragOverlay: (props: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, props.children),
+    useDroppable: () => ({ setNodeRef: () => undefined, isOver: false }),
+    useSensor: () => null,
+    useSensors: () => [],
+    closestCenter: () => [],
+    PointerSensor: class {},
+    KeyboardSensor: class {},
+  };
+});
+
+vi.mock("@dnd-kit/sortable", async () => {
+  const React = await import("react");
+  return {
+    SortableContext: (props: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, props.children),
+    horizontalListSortingStrategy: () => null,
+    verticalListSortingStrategy: () => null,
+    sortableKeyboardCoordinates: () => ({ x: 0, y: 0 }),
+    useSortable: () => ({
+      attributes: {},
+      listeners: {},
+      setNodeRef: () => undefined,
+      transform: null,
+      transition: undefined,
+      isDragging: false,
+    }),
+  };
+});
+
+// Builds the synthetic DragEndEvent shape PipelineBoard's handleDragEnd reads:
+// active.id, active.data.current (type/state), and over.id. Mirrors what a
+// real dnd-kit drag end supplies after our useSortable/useDroppable id wiring.
+function dragEndEvent(
+  activeId: string,
+  activeData: { type?: string; state?: ContentState } | undefined,
+  overId: string | null,
+) {
+  return {
+    active: { id: activeId, data: { current: activeData } },
+    over: overId === null ? null : { id: overId },
+  };
+}
+
+async function fireDragEnd(event: ReturnType<typeof dragEndEvent>) {
+  await act(async () => {
+    capturedHandlers.onDragEnd?.(event);
+    await Promise.resolve();
+  });
+}
 
 // Radix's DropdownMenuTrigger opens on pointerdown, not on a bare click event,
 // so jsdom interactions need the pointerdown fired first.
@@ -67,6 +137,8 @@ function defaultPrefs() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  capturedHandlers.onDragEnd = undefined;
+  capturedHandlers.onDragStart = undefined;
   vi.mocked(getBoardPrefs).mockResolvedValue(defaultPrefs());
 });
 
@@ -118,23 +190,15 @@ test("picking a color from the swatch menu persists via setBoardPrefs", async ()
   });
 });
 
-test("dragging a column header and dropping on another persists the new order", async () => {
+test("a column drag-end reorders columns and persists via setBoardPrefs", async () => {
   vi.mocked(getBoard).mockResolvedValue(emptyBoard());
   vi.mocked(getBoardPrefs).mockResolvedValue(defaultPrefs());
   vi.mocked(setBoardPrefs).mockResolvedValue(defaultPrefs());
 
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Ideas");
 
-  const ideasHead = (await screen.findByText("Ideas")).closest(".ws-board-colhead")!;
-  const measuredHead = (await screen.findByText("Measured")).closest(".ws-board-colhead")!;
-
-  const dataTransfer = {
-    setData: () => undefined,
-    getData: () => "idea",
-  };
-  fireEvent.dragStart(ideasHead, { dataTransfer });
-  fireEvent.dragOver(measuredHead, { dataTransfer });
-  fireEvent.drop(measuredHead, { dataTransfer });
+  await fireDragEnd(dragEndEvent("col:idea", { type: "column" }, "col:measured"));
 
   await waitFor(() => {
     expect(setBoardPrefs).toHaveBeenCalled();
@@ -155,11 +219,7 @@ test("dropping an item within its own column calls setItemOrder, not postState",
   await screen.findByText("First idea");
 
   // Move "First idea" (order 10) to the end of the column, after "Second idea" (order 20).
-  const dropSlot = screen.getByTestId("dropslot-idea-2");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "idea-1" : "idea"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  await fireDragEnd(dragEndEvent("idea-1", { type: "item", state: "idea" }, "colbody:idea"));
 
   await waitFor(() => {
     expect(setItemOrder).toHaveBeenCalledWith("example-agency", "idea-1", 1020);
@@ -170,8 +230,8 @@ test("dropping an item within its own column calls setItemOrder, not postState",
 test("dropping a ranked item into a gap between two legacy unordered neighbors keeps it ahead of them, not at the front of the column", async () => {
   // "a" and "b" are ranked; "x" and "y" are legacy items with no order, so
   // orderedColumn displays them trailing (sorted by id): a, b, x, y. Drag
-  // "b" to the slot between "x" and "y". The old logic read its neighbors
-  // off the pre-removal array once "b" is removed ([a, x, y]); both the
+  // "b" to land on "y" (the slot between "x" and "y"). The old logic read
+  // its neighbors off the pre-removal array once "b" is removed; both the
   // slot's immediate before ("x") and after ("y") are unranked, so it fell
   // back to a context-free 0, which is less than "a"'s order and jumped
   // "b" ahead of "a" instead of leaving it between the ranked prefix and
@@ -187,12 +247,8 @@ test("dropping a ranked item into a gap between two legacy unordered neighbors k
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("A");
 
-  // Drop "b" into slot index 3, i.e. between "x" (index 2) and "y" (index 3).
-  const dropSlot = screen.getByTestId("dropslot-idea-3");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "b" : "idea"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  // Drop "b" onto "y" (index 3 in the pre-removal array).
+  await fireDragEnd(dragEndEvent("b", { type: "item", state: "idea" }, "y"));
 
   await waitFor(() => {
     expect(setItemOrder).toHaveBeenCalled();
@@ -221,8 +277,8 @@ test("dropping a ranked item into a gap between two legacy unordered neighbors k
 test("dropping an item in a column where no item has a stored order yet normalizes the whole column and lands the item at the dropped slot", async () => {
   // Every existing tenant board is in this state before its first reorder:
   // no item has an `order`, so orderedColumn displays them by id. Drag "a"
-  // to the end; the resulting displayed order must be b, c, a, not a jump
-  // to the front.
+  // to the end (the column's empty-body drop id, since there is no card
+  // after "c" to land on); the resulting displayed order must be b, c, a.
   const a = makeItem("a", "idea", "A");
   const b = makeItem("b", "idea", "B");
   const c = makeItem("c", "idea", "C");
@@ -234,11 +290,7 @@ test("dropping an item in a column where no item has a stored order yet normaliz
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("A");
 
-  const dropSlot = screen.getByTestId("dropslot-idea-3");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "a" : "idea"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  await fireDragEnd(dragEndEvent("a", { type: "item", state: "idea" }, "colbody:idea"));
 
   await waitFor(() => {
     expect(setItemOrder).toHaveBeenCalledTimes(3);
@@ -272,11 +324,7 @@ test("normalization write rejection on an all-unranked column shows the error te
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("A");
 
-  const dropSlot = screen.getByTestId("dropslot-idea-3");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "a" : "idea"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  await fireDragEnd(dragEndEvent("a", { type: "item", state: "idea" }, "colbody:idea"));
 
   await waitFor(() => {
     expect(setItemOrder).toHaveBeenCalledTimes(3);
@@ -296,16 +344,9 @@ test("dropping an item back onto its own slot is a no-op and does not call setIt
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("First idea");
 
-  // "Second idea" is already at index 1; dropping it on its own slot (index 1)
-  // does not move it.
-  const dropSlot = screen.getByTestId("dropslot-idea-1");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "idea-2" : "idea"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  // "Second idea" is already at index 1; dropping it back on itself is a no-op.
+  await fireDragEnd(dragEndEvent("idea-2", { type: "item", state: "idea" }, "idea-2"));
 
-  // Give any accidental async write a chance to fire before asserting absence.
-  await new Promise((resolve) => setTimeout(resolve, 0));
   expect(setItemOrder).not.toHaveBeenCalled();
 });
 
@@ -317,13 +358,8 @@ test("dropping a single-item column's only card on its own slot does not call se
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("Only idea");
 
-  const dropSlot = screen.getByTestId("dropslot-idea-0");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "only-1" : "idea"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  await fireDragEnd(dragEndEvent("only-1", { type: "item", state: "idea" }, "only-1"));
 
-  await new Promise((resolve) => setTimeout(resolve, 0));
   expect(setItemOrder).not.toHaveBeenCalled();
 });
 
@@ -336,16 +372,32 @@ test("dropping an item across columns still calls postState", async () => {
   render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
   await screen.findByText("Drafting title");
 
-  const dropSlot = screen.getByTestId("dropslot-in_review-0");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "drafting-1" : "drafting"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  await fireDragEnd(dragEndEvent("drafting-1", { type: "item", state: "drafting" }, "colbody:in_review"));
 
   await waitFor(() => {
     expect(postState).toHaveBeenCalledWith("example-agency", "drafting-1", "in_review", undefined);
   });
   expect(setItemOrder).not.toHaveBeenCalled();
+});
+
+test("dropping a card past an off-screen column's last card still resolves through that column's drop id", async () => {
+  // Regression guard for cross-column drop landing precisely on a card in
+  // the target column (not just the empty-body placeholder): the dropped
+  // item's target index must fall before the card it was dropped onto.
+  const draftingItem = makeItem("drafting-1", "drafting", "Drafting title");
+  const approvedItem = makeItem("approved-1", "approved", "Approved title");
+  const board = { ...emptyBoard(), drafting: [draftingItem], approved: [approvedItem] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+  vi.mocked(postState).mockResolvedValue({ ok: true, item: { ...draftingItem, state: "approved" } });
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("Drafting title");
+
+  await fireDragEnd(dragEndEvent("drafting-1", { type: "item", state: "drafting" }, "approved-1"));
+
+  await waitFor(() => {
+    expect(postState).toHaveBeenCalledWith("example-agency", "drafting-1", "approved", undefined);
+  });
 });
 
 test("the board wrapper scrolls horizontally and column bodies scroll vertically", async () => {
@@ -356,6 +408,21 @@ test("the board wrapper scrolls horizontally and column bodies scroll vertically
 
   expect(container.querySelector(".ws-board-scroll")).toBeTruthy();
   expect(container.querySelectorAll(".ws-board-colbody").length).toBe(9);
+});
+
+test("renders a sortable card per item and wires the drag-end handler for the DndContext", async () => {
+  const first = makeItem("idea-1", "idea", "First idea", 10);
+  const second = makeItem("idea-2", "idea", "Second idea", 20);
+  const board = { ...emptyBoard(), idea: [first, second] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" onOpen={() => undefined} />);
+  await screen.findByText("First idea");
+
+  expect(screen.getByTestId("card-idea-1")).toBeTruthy();
+  expect(screen.getByTestId("card-idea-2")).toBeTruthy();
+  expect(capturedHandlers.onDragEnd).toBeTypeOf("function");
+  expect(capturedHandlers.onDragStart).toBeTypeOf("function");
 });
 
 test("a card shows its channel label next to the format pill", async () => {
@@ -381,6 +448,20 @@ test("a blog card falls back to the Blog label with no domain wired through", as
 
   await screen.findByText("Blog post title");
   expect(screen.getByText("Blog")).toBeTruthy();
+});
+
+test("a blog card shows the tenant's site domain when one is wired through", async () => {
+  const blogItem = makeItem("blog-1", "drafting", "Blog post title");
+  blogItem.channel = "blog";
+  blogItem.format = "blog-post";
+  const board = { ...emptyBoard(), drafting: [blogItem] };
+  vi.mocked(getBoard).mockResolvedValue(board);
+
+  render(<PipelineBoard tenant="example-agency" siteDomain="example-agency.dev" onOpen={() => undefined} />);
+
+  await screen.findByText("Blog post title");
+  expect(screen.getByText("example-agency.dev")).toBeTruthy();
+  expect(screen.queryByText("Blog")).toBeNull();
 });
 
 test("clicking an idea card opens the review popup instead of navigating", async () => {
@@ -461,11 +542,7 @@ test("drag-drop rejection shows the error text", async () => {
 
   await screen.findByText("Drafting title");
 
-  const dropSlot = screen.getByTestId("dropslot-in_review-0");
-  const dataTransfer = {
-    getData: (key: string) => (key === "application/x-item-id" ? "drafting-1" : "drafting"),
-  };
-  fireEvent.drop(dropSlot, { dataTransfer });
+  await fireDragEnd(dragEndEvent("drafting-1", { type: "item", state: "drafting" }, "colbody:in_review"));
 
   expect(await screen.findByText("Action failed: network down")).toBeTruthy();
 });
