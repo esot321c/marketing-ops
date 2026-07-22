@@ -58,3 +58,24 @@ test("todayView combines due and suggested", () => {
   expect(view.due).toEqual([]);
   expect(view.suggested).toHaveLength(2);
 });
+
+test("dueItems excludes needs_work and parked even if schedule looks due", () => {
+  const items = [
+    item({ id: "due", schedule: { status: "scheduled", date: "2026-07-01" } }),
+    item({ id: "stale-needs-work", state: "needs_work", schedule: { status: "scheduled", date: "2026-07-01" } }),
+    item({ id: "stale-parked", state: "parked", schedule: { status: "scheduled", date: "2026-07-01" } }),
+  ];
+  expect(dueItems(items, "2026-07-02").map((i) => i.id)).toEqual(["due"]);
+});
+
+test("suggestedGaps ignores needs_work and parked items when counting this week's output", () => {
+  const parked = item({
+    id: "stale-parked", state: "parked", pillar: "reliability",
+    schedule: { status: "scheduled", date: "2026-07-01" },
+  });
+  const gaps = suggestedGaps([parked], cadence, "2026-07-02");
+  // Without the fix, the parked item would count as "made this week" and
+  // reduce the shortfall from 2 to 1; a parked/needs_work item is not real
+  // output, so the full shortfall of 2 must still show.
+  expect(gaps).toHaveLength(2);
+});

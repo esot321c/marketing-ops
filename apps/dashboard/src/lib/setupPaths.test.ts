@@ -11,6 +11,7 @@ import {
   resolveContentItemPath,
   resolveContentAssetPath,
   resolveContentFile,
+  resolveBoardPrefsFile,
   resolveWorkTypeDir,
   resolveWorkFile,
   resolveAnalyticsDir,
@@ -67,6 +68,13 @@ test("resolveContentFile only allows known top-level files", () => {
     .toBe(path.join(dataRoot, "example-personal", "content", "learnings.jsonl"));
   expect(resolveContentFile("example-personal", "../secret")).toBeNull();
   expect(resolveContentFile("example-personal", "nested/x.json")).toBeNull();
+});
+
+test("resolveBoardPrefsFile resolves board-prefs.json under the tenant content dir", () => {
+  const file = resolveBoardPrefsFile("example-agency");
+  expect(file).toBe(path.join(dataRoot, "example-agency", "content", "board-prefs.json"));
+  expect(resolveBoardPrefsFile("../escape")).toBeNull();
+  expect(resolveBoardPrefsFile("Bad Tenant")).toBeNull();
 });
 
 test("resolveWorkTypeDir confines under the tenant's work dir for a known capability", () => {

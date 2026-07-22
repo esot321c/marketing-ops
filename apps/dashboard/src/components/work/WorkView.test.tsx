@@ -192,6 +192,8 @@ test("renders analytics charts above the doc list for the analytics capability",
     scheduled: [],
     posted: [],
     measured: [],
+    needs_work: [],
+    parked: [],
   });
   render(<WorkView tenant="example-agency" tenantName="Example Agency" capabilityId="analytics" />);
 

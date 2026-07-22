@@ -5,6 +5,25 @@ All notable changes to Marketing-Ops are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-21
+
+The pipeline board becomes a full Kanban board, content items gain a parked lifecycle, and cards get an actions menu.
+
+### Added
+
+- **Parked and needs-work states.** Content items can be set to `needs_work` (came back for revision) or `parked` (shelved or refused). They appear as their own board columns but are excluded from active pipeline counts (Today and Cadence).
+- **Drag-and-drop board.** Reorder cards within a column and move them between columns by dragging, with a drop indicator showing where a card will land and edge auto-scroll for reaching off-screen columns. Dropping in a column's open area sends the card to the bottom, whether same-column or cross-column, without needing to catch the indicator. Column headers drag to rearrange columns. Built on the pragmatic-drag-and-drop toolchain.
+- **Card actions menu.** Each card has a menu (Open, Move to any column, Duplicate, Delete with confirm), so moving a card to an off-screen column does not require a long drag.
+- **Per-column colors.** Each column header carries a color you pick from a fixed palette, saved per tenant.
+- **Manual item ordering.** Card order within a column persists.
+- **Channel on cards.** Cards show the channel alongside the format (for example `TEXT-POST` and `X`, or `BLOG-POST` and your site domain), so posts for different platforms are easy to tell apart.
+- **Kanban layout.** The board fills the viewport with full-height columns and a horizontal scrollbar pinned at the bottom of the screen. The sidebar has a fixed header showing the tenant and its status, groups the sections you use daily above collapsible Work, Tune, and Setup groups, scrolls independently, and can be collapsed entirely for more room. Scrollbars are themed to match.
+
+### Changed
+
+- Board column state (column order and colors) is stored in `data/<tenant>/content/board-prefs.json`. Existing tenants with no file get sensible defaults, so nothing needs migrating.
+- The dashboard dev web port and allowed host are overridable via `DASHBOARD_WEB_PORT` and `DASHBOARD_ALLOWED_HOST`.
+
 ## [0.8.0] - 2026-07-17
 
 BREAKING: the data directory is now tenant-first. Everything for a tenant lives under one folder.

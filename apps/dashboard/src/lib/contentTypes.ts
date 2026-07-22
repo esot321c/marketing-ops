@@ -1,7 +1,8 @@
 export type Channel = "linkedin" | "blog" | "tiktok" | "instagram" | "x";
 export type Format = "text-post" | "blog-post" | "carousel" | "image-post" | "short-video";
 export type ContentState =
-  | "idea" | "drafting" | "in_review" | "approved" | "scheduled" | "posted" | "measured";
+  | "idea" | "drafting" | "in_review" | "approved" | "scheduled" | "posted" | "measured"
+  | "needs_work" | "parked";
 
 export type AssetKind = "copy" | "blog-body" | "carousel-visual" | "image" | "video";
 export type AssetRoute = "local-harness" | "external-tool";
@@ -60,6 +61,7 @@ export interface ContentItem {
   pillar: string;
   caption?: string; // the LinkedIn post body that accompanies the media; one per post
   citations?: Citation[];
+  order?: number; // per-item rank within its column; absent items sort after ranked ones
   assets: Asset[];
   schedule: Schedule;
   source: string[];
@@ -108,6 +110,7 @@ export type AgentAction = "fulfil-request" | "draft-suggestion" | "refine" | "ap
 
 const STATES: ReadonlySet<string> = new Set<ContentState>([
   "idea", "drafting", "in_review", "approved", "scheduled", "posted", "measured",
+  "needs_work", "parked",
 ]);
 
 const CHANNELS: ReadonlySet<string> = new Set<Channel>([
@@ -169,6 +172,20 @@ export function isItemReady(item: ContentItem): boolean {
   return item.assets.length > 0 && item.assets.every((a) => a.status === "ready");
 }
 
+const CHANNEL_LABELS: Record<Exclude<Channel, "blog">, string> = {
+  linkedin: "LinkedIn",
+  x: "X",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+};
+
+export function channelLabel(channel: string, siteDomain?: string): string {
+  if (channel === "blog") {
+    return siteDomain && siteDomain.length > 0 ? siteDomain : "Blog";
+  }
+  return CHANNEL_LABELS[channel as Exclude<Channel, "blog">] ?? channel;
+}
+
 export function effectiveFormat(item: ContentItem): Format {
   if (item.format === "short-video" || item.assets.some((a) => a.kind === "video")) {
     return "short-video";
@@ -204,6 +221,10 @@ export function validateContentItem(value: unknown): value is ContentItem {
   }
 
   if (!(v.caption === undefined || typeof v.caption === "string")) {
+    return false;
+  }
+
+  if (!(v.order === undefined || (typeof v.order === "number" && Number.isFinite(v.order)))) {
     return false;
   }
 

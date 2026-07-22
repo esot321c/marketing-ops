@@ -1,6 +1,7 @@
 import type { InitState, TenantSummary, ProfileSpec, WorkArtifactSummary, WorkArtifact, WorkCounts } from "@/lib/types";
 import type { DesignTokens } from "@/design-system/types";
 import type { ContentItem, ContentState, RunMode, AgentAction, Learning, Cadence } from "@/lib/contentTypes";
+import type { BoardPrefs } from "@/lib/contentLibrary";
 import type { Suggestion } from "@/lib/planner";
 import type { AnalyticsData } from "@/lib/analyticsTypes";
 
@@ -145,6 +146,16 @@ export function getCadence(tenant: string) {
   return jsonRequest<Cadence>(`/api/content/${encodeURIComponent(tenant)}/cadence`);
 }
 
+export function getBoardPrefs(tenant: string) {
+  return jsonRequest<BoardPrefs>(`/api/content/${encodeURIComponent(tenant)}/board-prefs`);
+}
+
+export function setBoardPrefs(tenant: string, prefs: BoardPrefs) {
+  return jsonRequest<BoardPrefs>(`/api/content/${encodeURIComponent(tenant)}/board-prefs`, {
+    method: "POST", body: JSON.stringify(prefs),
+  });
+}
+
 export function getItem(tenant: string, id: string) {
   return jsonRequest<ContentItem>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}`);
 }
@@ -163,6 +174,18 @@ export function postRequest(tenant: string, prompt: string, channel: string) {
 
 export function postState(tenant: string, id: string, to: ContentState, date?: string) {
   return jsonRequest<{ ok: boolean; item: ContentItem }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/state`, { method: "POST", body: JSON.stringify({ to, date }) });
+}
+
+export function deleteItem(tenant: string, id: string) {
+  return jsonRequest<{ ok: boolean }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function duplicateItem(tenant: string, id: string) {
+  return jsonRequest<ContentItem>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/duplicate`, { method: "POST" });
+}
+
+export function setItemOrder(tenant: string, id: string, order: number) {
+  return jsonRequest<{ ok: boolean; item: ContentItem }>(`/api/content/${encodeURIComponent(tenant)}/${encodeURIComponent(id)}/order`, { method: "POST", body: JSON.stringify({ order }) });
 }
 
 export function postRefine(tenant: string, id: string, instruction: string) {

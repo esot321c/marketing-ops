@@ -20,6 +20,8 @@ const EMPTY_BOARD: Record<ContentState, ContentItem[]> = {
   scheduled: [],
   posted: [],
   measured: [],
+  needs_work: [],
+  parked: [],
 };
 
 function contentItem(overrides: Partial<ContentItem>): ContentItem {

@@ -7,7 +7,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
-    port: 8788,
+    port: Number(process.env.DASHBOARD_WEB_PORT) || 8788,
+    allowedHosts: process.env.DASHBOARD_ALLOWED_HOST
+      ? [process.env.DASHBOARD_ALLOWED_HOST]
+      : undefined,
     proxy: {
       "/api": "http://127.0.0.1:8787",
       "/events": { target: "http://127.0.0.1:8787", ws: false }

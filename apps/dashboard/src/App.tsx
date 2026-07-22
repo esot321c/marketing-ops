@@ -91,7 +91,12 @@ export default function App() {
       {selectedTenant !== undefined ? (
         (() => {
           const ws = (
-            <Workspace tenant={selectedTenant.id} tenantName={selectedTenant.name} themeMode={themeMode} />
+            <Workspace
+              tenant={selectedTenant.id}
+              tenantName={selectedTenant.name}
+              siteDomain={selectedTenant.domain}
+              themeMode={themeMode}
+            />
           );
           return (
             <Routes>

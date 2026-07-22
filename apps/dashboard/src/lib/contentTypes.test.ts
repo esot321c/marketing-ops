@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { effectiveFormat, gateFor, isItemReady, validateContentItem } from "./contentTypes.js";
+import { channelLabel, effectiveFormat, gateFor, isItemReady, validateContentItem } from "./contentTypes.js";
 import type { Asset, ContentItem } from "./contentTypes.js";
 
 const item: ContentItem = {
@@ -42,6 +42,11 @@ test("validateContentItem accepts channel x", () => {
   expect(validateContentItem({ ...item, channel: "x" })).toBe(true);
 });
 
+test("validateContentItem accepts the needs_work and parked states", () => {
+  expect(validateContentItem({ ...item, state: "needs_work" })).toBe(true);
+  expect(validateContentItem({ ...item, state: "parked" })).toBe(true);
+});
+
 test("validateContentItem accepts an optional string caption", () => {
   expect(validateContentItem({ ...item, caption: "The post body" })).toBe(true);
   expect(validateContentItem({ ...item, caption: undefined })).toBe(true);
@@ -49,6 +54,18 @@ test("validateContentItem accepts an optional string caption", () => {
 
 test("validateContentItem rejects a non-string caption", () => {
   expect(validateContentItem({ ...item, caption: 42 })).toBe(false);
+});
+
+test("validateContentItem accepts an absent or numeric order", () => {
+  expect(validateContentItem({ ...item, order: undefined })).toBe(true);
+  expect(validateContentItem(item)).toBe(true);
+  expect(validateContentItem({ ...item, order: 5 })).toBe(true);
+});
+
+test("validateContentItem rejects a non-finite or non-number order", () => {
+  expect(validateContentItem({ ...item, order: "x" })).toBe(false);
+  expect(validateContentItem({ ...item, order: NaN })).toBe(false);
+  expect(validateContentItem({ ...item, order: Infinity })).toBe(false);
 });
 
 test("validateContentItem accepts a well-formed citations array", () => {
@@ -109,6 +126,26 @@ test("effectiveFormat: short-video stays short-video", () => {
 
 test("effectiveFormat: image-post format with no image asset yet stays image-post", () => {
   expect(effectiveFormat({ ...item, format: "image-post" })).toBe("image-post");
+});
+
+test("channelLabel maps each known channel to its display name", () => {
+  expect(channelLabel("linkedin")).toBe("LinkedIn");
+  expect(channelLabel("x")).toBe("X");
+  expect(channelLabel("instagram")).toBe("Instagram");
+  expect(channelLabel("tiktok")).toBe("TikTok");
+});
+
+test("channelLabel maps blog to the site domain when one is given", () => {
+  expect(channelLabel("blog", "example.com")).toBe("example.com");
+});
+
+test("channelLabel falls back to Blog when no domain is given", () => {
+  expect(channelLabel("blog")).toBe("Blog");
+  expect(channelLabel("blog", "")).toBe("Blog");
+});
+
+test("channelLabel passes through an unknown channel value as-is", () => {
+  expect(channelLabel("mastodon")).toBe("mastodon");
 });
 
 test("validateContentItem checks image package treatment and slidePrompts", () => {
